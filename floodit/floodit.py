@@ -1,5 +1,5 @@
 # -*- coding:utf-8 -*-
-import sys
+import sys, os
 import pygame as pg
 import random
 import fill
@@ -58,12 +58,24 @@ class Button(object):
         self.h = h
         self.x1 = x+w
         self.y1 = y+h
+        self.rect = pg.Rect(self.x, self.y, self.w, self.h)
+    def set_text(self,font,string):
+        self.text = font.render(string, 1, (0, 0, 0))
+        self.textpos = self.text.get_rect()
+        self.textpos.centerx = (self.x+self.x1)//2
+        self.textpos.centery = (self.y+self.y1)//2
+    def show(self,screen):
+        pg.draw.rect(screen,(255,255,255),self.rect)
+        screen.blit(self.text,self.textpos)
 
 
 class Floodit(object):
     def __init__(self,conf_dict={}):
         self.__dict__.update(conf_dict)
         self.screen = pg.display.set_mode(self.WINDOW_SIZE)
+        pg.display.set_caption("Flood it!")
+        pg.font.init()
+        self.font = pg.font.SysFont("AR PL UMing CN", 20)
         self.screen.fill([200,200,200])
         self.table = GameTable(self.COLORS.keys(),
                                self.TABLE_SIZE,
@@ -80,9 +92,9 @@ class Floodit(object):
         y = self.TABLE_POSITION[1]
         h = self.BLOCK_SIDE*2
         self.rb = Button(x,y,w,h)
+        self.rb.set_text(self.font,u"New Game!")
+        self.rb.show(self.screen)
 
-        rect = pg.Rect(self.rb.x, self.rb.y, self.rb.w, self.rb.h)
-        pg.draw.rect(self.screen,(255,255,255),rect)
 
         left = self.cl.x
         for v in self.COLORS.values():
@@ -101,11 +113,22 @@ class Floodit(object):
             if math_number in self.COLORS.keys():
                 fill.fill(self.table,math_number)
                 self.table.draw(self.screen)
+                self.win()
             self.show()
         elif self.rb.x < pos[0] < self.rb.x1 and \
             self.rb.y < pos[1] < self.rb.y1:
             self.reset()
 
+    def win(self):
+        if fill.filldone(self.table):
+            font = pg.font.SysFont("AR PL UMing CN", 32)
+            self.win_text = font.render("win", 1, (0, 0, 0))
+            textpos = win_text.get_rect()
+            textpos.centerx = (self.rb.x+self.rb.x1)//2
+            textpos.centery = self.rb.y1*2
+            self.screen.blit(win_text,textpos)
+            return True
+        return False
     def reset(self):
         del self.table
         self.table = GameTable(self.COLORS.keys(),
@@ -114,6 +137,13 @@ class Floodit(object):
                                self.BLOCK_SIDE)
         self.table.draw(self.screen)
         self.show()
+    def mainloop(self):
+        while 1:
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.QUIT: sys.exit(0)
+                if event.type == pg.MOUSEBUTTONDOWN:
+                    self.click(event.pos)
 
 if __name__== '__main__':
     conf_dict={"COLORS":BLOCK_COLORS,
@@ -123,9 +153,4 @@ if __name__== '__main__':
                "BLOCK_SIDE":BLOCK_SIZE}
     fi = Floodit(conf_dict=conf_dict)
     fi.show()
-    while 1:
-        events = pg.event.get()
-        for event in events:
-            if event.type == pg.QUIT: sys.exit(0)
-            if event.type == pg.MOUSEBUTTONDOWN:
-                fi.click(event.pos)
+    fi.mainloop()
