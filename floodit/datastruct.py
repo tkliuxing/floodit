@@ -1,8 +1,5 @@
 # -*- coding:utf-8 -*-
-import sys, os
-import pygame as pg
 import random
-import fill
 
 class Table(object):
     """二维表"""

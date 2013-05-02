@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-import sys, os
+import sys
 import pygame as pg
-import random
 import fill
 from ui import Button, GameTable
 from event import ClickEventListen
@@ -56,7 +55,7 @@ class Floodit(object):
         if self.wined:
             return
         if number in self.COLORS.keys():
-            fill.fill(self.table,number,x=7,y=7)
+            fill.fill(self.table,number,x=0,y=0)
             self.table.draw(self.screen, BLOCK_COLORS)
             self.wined=self.win()
         self.show()

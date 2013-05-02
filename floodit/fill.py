@@ -40,7 +40,7 @@ if __name__== '__main__':
         for line in ary:
             print "".join(line)
             
-    import random, pprint, os
+    import random, os
     os.system("clear")
     ary = []
     symbols = ["1","2","3","4","5","6"]
@@ -54,7 +54,7 @@ if __name__== '__main__':
         number = raw_input("Select symbol:")
         while number not in symbols:
             number = raw_input("Select symbol:")
-        fill(ary,number,x=3,y=3)
+        fill(ary,number,x=0,y=0)
         os.system("clear")
         pary(ary)
     print "You are win!"

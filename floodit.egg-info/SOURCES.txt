@@ -1,9 +1,0 @@
-setup.cfg
-setup.py
-floodit/__init__.py
-floodit.egg-info/PKG-INFO
-floodit.egg-info/SOURCES.txt
-floodit.egg-info/dependency_links.txt
-floodit.egg-info/entry_points.txt
-floodit.egg-info/not-zip-safe
-floodit.egg-info/top_level.txt
