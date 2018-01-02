@@ -1,2 +1,4 @@
 floodit.egg-info
 *.pyc
+build
+dist

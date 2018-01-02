@@ -1,14 +1,16 @@
 from setuptools import setup, find_packages
-import sys, os
 
 version = '0.1'
+
+APP = ['floodit/floodit.py']
+DATA_FILES = []
+OPTIONS = {}
 
 setup(name='floodit',
       version=version,
       description="A game.",
-      long_description="""\
-""",
-      classifiers=[], # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
+      long_description="""""",
+      classifiers=[],   # Get strings from http://pypi.python.org/pypi?%3Aaction=list_classifiers
       keywords='game',
       author='Ronald Bai',
       author_email='ouyanghongyu@gmail.com',
@@ -18,9 +20,10 @@ setup(name='floodit',
       include_package_data=True,
       zip_safe=False,
       install_requires=[
-          # -*- Extra requirements: -*-
+          "pygame"
       ],
-      entry_points="""
-      # -*- Entry points: -*-
-      """,
+      app=APP,
+      data_files=DATA_FILES,
+      options={'py2app': OPTIONS},
+      setup_requires=['py2app'],
       )
