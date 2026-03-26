@@ -22,6 +22,8 @@ BLOCK_COLORS = {
     6: (255, 0, 255),
 }
 
+MAX_STEPS = 30
+
 
 class Floodit:
     """游戏主类"""
@@ -83,35 +85,59 @@ class Floodit:
 
         self.table.draw(self.screen, BLOCK_COLORS)
         self.won = False
-        self.winrect = None
+        self.lost = False
+        self.steps = 0
+        self.statusrect = None
+        self._draw_steps()
 
     def show(self):
         pg.display.flip()
 
+    def _draw_steps(self):
+        """在 New Game 按钮下方显示当前步数。"""
+        x = self.rb.x
+        y = self.rb.y1 + int(10 * ZOOM)
+        w = self.rb.w
+        h = int(24 * ZOOM)
+        pg.draw.rect(self.screen, (200, 200, 200), pg.Rect(x, y, w, h))
+        color = (180, 0, 0) if self.steps >= MAX_STEPS else (50, 50, 50)
+        text = self.font.render(f"Steps: {self.steps} / {MAX_STEPS}", True, color)
+        tr = text.get_rect()
+        tr.centerx = x + w // 2
+        tr.centery = y + h // 2
+        self.screen.blit(text, tr)
+
     def colors_click(self, number: int = None):
         assert number is not None, "CLICK ERROR!"
-        if self.won:
+        if self.won or self.lost:
             return
         if number in self.COLORS:
             fill.fill(self.table, number, x=0, y=0)
+            self.steps += 1
             self.table.draw(self.screen, BLOCK_COLORS)
-            self.won = self._check_win()
+            self._draw_steps()
+            if fill.filldone(self.table):
+                self._show_status("You Win!", (0, 140, 0))
+                self.won = True
+            elif self.steps >= MAX_STEPS:
+                self._show_status("Game Over!", (180, 0, 0))
+                self.lost = True
         self.show()
 
-    def _check_win(self) -> bool:
-        if fill.filldone(self.table):
-            font = pg.font.SysFont("AR PL UMing CN", int(32 * ZOOM))
-            win_text = font.render("win", True, (0, 0, 0))
-            self.winrect = win_text.get_rect()
-            self.winrect.centerx = (self.rb.x + self.rb.x1) // 2
-            self.winrect.centery = self.rb.y1 * 2
-            pg.draw.rect(self.screen, (200, 200, 200), self.winrect)
-            self.screen.blit(win_text, self.winrect)
-            return True
-        return False
+    def _show_status(self, message: str, color: tuple):
+        """在棋盘右侧中央显示胜负提示。"""
+        font = pg.font.SysFont("AR PL UMing CN", int(28 * ZOOM))
+        text = font.render(message, True, color)
+        self.statusrect = text.get_rect()
+        self.statusrect.centerx = (self.rb.x + self.rb.x1) // 2
+        self.statusrect.centery = self.rb.y1 * 3
+        pg.draw.rect(self.screen, (200, 200, 200), self.statusrect)
+        self.screen.blit(text, self.statusrect)
 
     def reset(self):
         self.won = False
+        self.lost = False
+        self.steps = 0
         self.table = GameTable(
             self.COLORS.keys(),
             self.TABLE_SIZE,
@@ -119,9 +145,10 @@ class Floodit:
             self.BLOCK_SIDE,
         )
         self.table.draw(self.screen, BLOCK_COLORS)
-        if self.winrect:
-            pg.draw.rect(self.screen, (200, 200, 200), self.winrect)
-            self.winrect = None
+        if self.statusrect:
+            pg.draw.rect(self.screen, (200, 200, 200), self.statusrect)
+            self.statusrect = None
+        self._draw_steps()
         self.show()
 
     def mainloop(self):
