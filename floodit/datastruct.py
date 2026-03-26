@@ -1,24 +1,22 @@
-# -*- coding:utf-8 -*-
 import random
 
 
-class Table(object):
+class Table:
     """二维表"""
 
-    def __init__(self, numbers, size):
+    def __init__(self, numbers: list, size: tuple):
         """
-            生成一个宽为size[0]高为size[1],从numbers中随机取样为元素的二维表
-            numbers: 内容为数字的list
-            size: 具有两个数字元素的list或者tuple
+        生成一个宽为 size[0]、高为 size[1]，从 numbers 中随机取样为元素的二维表。
+
+        numbers: 内容为数字的 list
+        size: 具有两个数字元素的 list 或 tuple
         """
-        self.numbers = numbers
+        self.numbers = list(numbers)
         self.size = size
-        self.ary = []
-        for i in xrange(self.size[1]):
-            at = []
-            for j in xrange(self.size[0]):
-                at.append(random.choice(self.numbers))
-            self.ary.append(at)
+        self.ary = [
+            [random.choice(self.numbers) for _ in range(self.size[0])]
+            for _ in range(self.size[1])
+        ]
 
     def __iter__(self):
         return iter(self.ary)

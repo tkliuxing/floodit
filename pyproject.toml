@@ -1,0 +1,21 @@
+[project]
+name = "floodit"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11.12"
+dependencies = [
+    "pygame>=2.6.1",
+]
+
+[project.scripts]
+floodit = "floodit.__main__:main"
+
+[[tool.uv.index]]
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+default = true
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.19.0",
+]

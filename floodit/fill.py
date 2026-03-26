@@ -1,10 +1,6 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-
-
-def fill(ary, number, x=0, y=0, src=None):
+def fill(ary: list, number: int, x: int = 0, y: int = 0, src: int = None):
     """
-    将二维数组(ary)中相邻且相同的数字(src)替换为指定的数字(number),从坐标(x,y)开始填充。
+    将二维数组(ary)中从坐标(x, y)开始，相邻且与原始值(src)相同的格子替换为指定数字(number)。
     """
     if x < 0 or y < 0 or x >= len(ary[0]) or y >= len(ary):
         return
@@ -12,53 +8,45 @@ def fill(ary, number, x=0, y=0, src=None):
         src = ary[y][x]
         if src == number:
             return
-    if ary[y][x] == src:
-        ary[y][x] = number
-        # 如果该位置的数字和原始数字相同则替换为目标数字。
-        fill(ary, number, x + 1, y, src)
-        fill(ary, number, x - 1, y, src)
-        fill(ary, number, x, y + 1, src)
-        fill(ary, number, x, y - 1, src)
-    else:
+    if ary[y][x] != src:
         return
+    ary[y][x] = number
+    fill(ary, number, x + 1, y, src)
+    fill(ary, number, x - 1, y, src)
+    fill(ary, number, x, y + 1, src)
+    fill(ary, number, x, y - 1, src)
 
 
-def filldone(ary):
-    """
-
-    """
+def filldone(ary: list) -> bool:
+    """判断二维数组是否已全部填充为同一个值。"""
     src = ary[0][0]
-    flag = True
-    for i in ary:
-        for j in i:
-            if j != src:
-                flag = False
-    return flag
+    return all(cell == src for row in ary for cell in row)
 
 
-if __name__ == '__main__':
-    # A command line floodit game
-    def pary(ary):
-        # print ""
-        for line in ary:
-            print "".join(line)
-
-    import random
+if __name__ == "__main__":
+    # 命令行版 floodit 游戏
     import os
-    os.system("clear")
-    ary = []
+    import random
+
+    def print_board(ary: list):
+        for line in ary:
+            print("".join(line))
+
     symbols = ["1", "2", "3", "4", "5", "6"]
-    for i in range(7):
-        at = []
-        for j in range(7):
-            at.append(random.choice(symbols))
-        ary.append(at)
-    pary(ary)
-    while not filldone(ary):
-        number = raw_input("Select symbol:")
+    board = [
+        [random.choice(symbols) for _ in range(7)]
+        for _ in range(7)
+    ]
+
+    os.system("clear")
+    print_board(board)
+
+    while not filldone(board):
+        number = input("Select symbol: ")
         while number not in symbols:
-            number = raw_input("Select symbol:")
-        fill(ary, number, x=0, y=0)
+            number = input("Select symbol: ")
+        fill(board, number, x=0, y=0)
         os.system("clear")
-        pary(ary)
-    print "You are win!"
+        print_board(board)
+
+    print("You win!")
