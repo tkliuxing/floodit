@@ -1,4 +1,26 @@
-floodit.egg-info
+# Python
 *.pyc
-build
-dist
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+*.egg
+
+# 构建产物
+build/
+dist/
+
+# uv / 虚拟环境
+.venv/
+.python-version
+
+# PyInstaller
+*.spec
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
