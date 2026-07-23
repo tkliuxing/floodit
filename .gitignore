@@ -24,3 +24,8 @@ dist/
 .idea/
 .vscode/
 *.swp
+.omc/
+.claude/
+
+# 工具缓存
+.ruff_cache/

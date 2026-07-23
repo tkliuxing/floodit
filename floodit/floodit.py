@@ -7,7 +7,6 @@ from . import fill
 from .event import ClickEventListen
 from .ui import Button, GameTable
 
-
 ZOOM = 1
 WINDOW_SIZE = (int(580 * ZOOM), int(340 * ZOOM))
 ORIGIN_POINT = (int(20 * ZOOM), int(20 * ZOOM))
@@ -87,6 +86,7 @@ class Floodit:
         self.won = False
         self.lost = False
         self.steps = 0
+        self.animation_queue = []
         self.statusrect = None
         self._draw_steps()
 
@@ -109,20 +109,37 @@ class Floodit:
 
     def colors_click(self, number: int = None):
         assert number is not None, "CLICK ERROR!"
-        if self.won or self.lost:
+        if self.won or self.lost or self.animation_queue:
             return
         if number in self.COLORS:
-            fill.fill(self.table, number, x=0, y=0)
+            sequence = fill.get_fill_sequence(self.table.ary, number)
             self.steps += 1
-            self.table.draw(self.screen, BLOCK_COLORS)
             self._draw_steps()
-            if fill.filldone(self.table):
+            if sequence:
+                self.animation_queue = sequence
+            elif fill.filldone(self.table.ary):
                 self._show_status("You Win!", (0, 140, 0))
                 self.won = True
             elif self.steps >= MAX_STEPS:
                 self._show_status("Game Over!", (180, 0, 0))
                 self.lost = True
         self.show()
+
+    def update_animation(self):
+        """处理动画队列中的一步。"""
+        current_layer = self.animation_queue.pop(0)
+        for x, y, color in current_layer:
+            self.table.ary[y][x] = color
+
+        self.table.draw(self.screen, BLOCK_COLORS)
+
+        if not self.animation_queue:
+            if fill.filldone(self.table.ary):
+                self._show_status("You Win!", (0, 140, 0))
+                self.won = True
+            elif self.steps >= MAX_STEPS:
+                self._show_status("Game Over!", (180, 0, 0))
+                self.lost = True
 
     def _show_status(self, message: str, color: tuple):
         """在棋盘右侧中央显示胜负提示。"""
@@ -138,6 +155,7 @@ class Floodit:
         self.won = False
         self.lost = False
         self.steps = 0
+        self.animation_queue = []
         self.table = GameTable(
             self.COLORS.keys(),
             self.TABLE_SIZE,
@@ -152,9 +170,15 @@ class Floodit:
         self.show()
 
     def mainloop(self):
+        clock = pg.time.Clock()
         while True:
+            clock.tick(60)
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     sys.exit(0)
                 self.events.listen(event)
 
+            if self.animation_queue:
+                self.update_animation()
+
+            self.show()

@@ -1,28 +1,56 @@
-## floodit
+# floodit
 
-这是一个由python + pygame写成的填色游戏.
-游戏原型为: Chrome store [Flood-It!](https://chrome.google.com/webstore/detail/flood-it/hidcjhphimkfnacedjcnajpmlaegnddp)
+A coloring game implemented with Python and Pygame.
+The concept is based on the Chrome extension [Flood-It!](https://chrome.google.com/webstore/detail/flood-it/hidcjhphimkfnacedjcnajpmlaegnddp).
 
-## 玩法
+一个由 Python + Pygame 开发的填色游戏。
+游戏原型参考自 Chrome Store 扩展程序 [Flood-It!](https://chrome.google.com/webstore/detail/flood-it/hidcjhphimkfnacedjcnajpmlaegnddp)。
 
-* 该游戏的目标是在允许的步数内使一种颜色填满整个棋盘格.
-* 从棋盘格左上角开始, 点击右侧的各个色块进行填充.
-* 当您改变当前区域的颜色时, 具有相同颜色的相邻方块也都会改变颜色.
-* 当棋盘格中只有一种颜色时游戏结束.
-* 所使用步数越少, 得分越高.
+---
 
-## 安装
+## Gameplay / 玩法
 
-* 依赖
-    * [python](http://python.org/getit/)
+### English
+* **Goal**: Fill the entire grid with a single color within the step limit.
+* **Controls**:
+    * The game starts from the top-left area of the grid.
+    * Click the color buttons on the right to change the current region's color.
+    * **Color Propagation**: When a region changes color, all adjacent tiles of the same color will change color simultaneously (with a smooth animation effect).
+* **Rules**:
+    * **Win Condition**: The game is won when all tiles in the grid are the same color.
+    * **Loss Condition**: The game is lost if you exceed the maximum number of steps.
+    * **Scoring**: A higher score is achieved by using fewer steps.
+    * **Constraint**: Clicking the color currently occupying the region still consumes one step.
+
+### 中文
+* **目标**：在规定的步数限制内，使棋盘格上的所有方块变成同一种颜色。
+* **操作**：
+    * 游戏从棋盘格的左上角区域开始。
+    * 点击界面右侧对应的颜色块，将当前连接区域的颜色替换为目标颜色。
+    * **颜色传播**：颜色变化具有“扩散”效果：当改变当前区域颜色时，与其相邻且颜色相同的方块也会同步改变颜色。
+* **规则**：
+    * **胜负判定**：当整个棋盘格仅剩一种颜色时，游戏胜利；如果在达到指定步数前未完成，则游戏失败。
+    * **得分机制**：使用的总步数越少，得分越高。
+    * **惩罚机制**：点击当前区域已有的颜色仍会消耗一步。
+
+---
+
+## Installation / 安装
+
+* **Dependencies / 依赖**
+    * [Python](http://python.org/getit/)
     * [SDL](http://www.libsdl.org/)
     * [pygame](http://pygame.org/download.shtml)
 
-## 运行
+## Running / 运行
 
-在shell/cmd中运行`python floodit.py`
+Run the following command in your terminal:
+在终端/命令行中运行：
+```bash
+python main.py
+```
 
-## Licence
+## License / 许可
 
 > Copyright (c) 2012 Ronald Bai <<ouyanghongyu@gmail.com>>
 > 
