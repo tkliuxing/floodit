@@ -1,3 +1,9 @@
+# 用 hatchling 而非 setuptools：仓库里的 setup.py 只服务于 py2app
+# (setup_requires=["py2app"])，让 setuptools 接管会把它一起拖进构建流程。
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "floodit"
 version = "0.1.0"
@@ -10,6 +16,12 @@ dependencies = [
 
 [project.scripts]
 floodit = "floodit.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["floodit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py311"
@@ -25,12 +37,9 @@ select = [
     "B",   # flake8-bugbear
 ]
 
-[[tool.uv.index]]
-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
-default = true
-
 [dependency-groups]
 dev = [
     "pyinstaller>=6.19.0",
+    "pytest>=9.1.1",
     "ruff>=0.15.22",
 ]
