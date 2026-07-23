@@ -25,9 +25,9 @@ jobs:
         uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
-          # 固定 Python：pygame 2.6.1 没有更新版本 Python 的预编译 wheel，
-          # 不固定会退化成源码编译并因缺少 SDL 头文件失败
-          python-version: "3.11"
+          # 固定 Python：需匹配 requires-python (>=3.11.12)，且 pygame 2.6.1
+          # 对更新的 Python 没有预编译 wheel，会退化成源码编译并缺 SDL 头文件
+          python-version: "3.11.12"
 
       - name: Sync dependencies
         run: uv sync --locked
@@ -56,9 +56,9 @@ jobs:
         uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
-          # 固定 Python：pygame 2.6.1 没有更新版本 Python 的预编译 wheel，
-          # 不固定会退化成源码编译并因缺少 SDL 头文件失败
-          python-version: "3.11"
+          # 固定 Python：需匹配 requires-python (>=3.11.12)，且 pygame 2.6.1
+          # 对更新的 Python 没有预编译 wheel，会退化成源码编译并缺 SDL 头文件
+          python-version: "3.11.12"
 
       - name: Sync dependencies
         run: uv sync --locked
