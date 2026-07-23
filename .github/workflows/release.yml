@@ -14,12 +14,15 @@ jobs:
     name: Build Windows exe
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v9
         with:
           enable-cache: true
+          # 固定 Python：pygame 2.6.1 没有更新版本 Python 的预编译 wheel，
+          # 不固定会退化成源码编译并因缺少 SDL 头文件失败
+          python-version: "3.11"
 
       - name: Sync dependencies
         run: uv sync --locked
@@ -34,7 +37,7 @@ jobs:
         run: Move-Item dist/FloodIt.exe FloodIt-windows-x86_64.exe
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: FloodIt-windows-x86_64
           path: FloodIt-windows-x86_64.exe
@@ -50,7 +53,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
