@@ -7,14 +7,14 @@ OPTIONS = {
     "packages": ["pygame"],
     "plist": {
         "CFBundleName": "Flood it!",
-        "CFBundleShortVersionString": "0.1",
+        "CFBundleShortVersionString": "0.2.0",
         "NSHighResolutionCapable": True,
     },
 }
 
 setup(
     name="floodit",
-    version="0.1",
+    version="0.2.0",
     description="A flood-fill puzzle game.",
     author="Ronald Bai",
     author_email="ouyanghongyu@gmail.com",
