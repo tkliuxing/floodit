@@ -3,7 +3,7 @@ import sys
 
 import pygame as pg
 
-from . import fill, fonts
+from . import fill, filters, fonts
 from .anim import FloodAnimation, RevealAnimation
 from .event import ClickEventListen
 from .i18n import Translator
@@ -196,15 +196,19 @@ class Floodit:
             self._show_status("lose", LOSE_COLOR)
         self.show()
 
-    def _start_reveal(self):
-        """开局把棋盘逐格铺开。"""
-        board = pg.Rect(
+    @property
+    def board_rect(self) -> pg.Rect:
+        """棋盘占据的矩形区域。"""
+        return pg.Rect(
             self.TABLE_POSITION[0],
             self.TABLE_POSITION[1],
             self.TABLE_SIZE[0] * self.BLOCK_SIDE,
             self.TABLE_SIZE[1] * self.BLOCK_SIDE,
         )
-        pg.draw.rect(self.screen, BG_COLOR, board)
+
+    def _start_reveal(self):
+        """开局把棋盘逐格铺开。"""
+        pg.draw.rect(self.screen, BG_COLOR, self.board_rect)
         self.reveal = RevealAnimation(self.table, self.COLORS, BG_COLOR)
 
     def update_reveal(self, dt: float):
@@ -221,6 +225,11 @@ class Floodit:
         if offset != (0, 0):
             self.display.fill(BG_COLOR)
         self.display.blit(self.screen, offset)
+        # 融合滤镜作用在窗口副本上，不动离屏画面，
+        # 所以它对铺开/波纹/震动一视同仁，也不会污染后续帧
+        filters.blend_rect(
+            self.display, self.board_rect.move(offset), self.TABLE_SIZE, filters.CELL_PX
+        )
         for ripple in self.ripples:
             ripple.draw(self.display)
         self.particles.draw(self.display)
@@ -283,13 +292,7 @@ class Floodit:
         if fill.filldone(self.table.ary):
             self._show_status("win", WIN_COLOR)
             self.won = True
-            board = pg.Rect(
-                self.TABLE_POSITION[0],
-                self.TABLE_POSITION[1],
-                self.TABLE_SIZE[0] * self.BLOCK_SIDE,
-                self.TABLE_SIZE[1] * self.BLOCK_SIDE,
-            )
-            self.particles.emit(confetti(board, list(self.COLORS.values())))
+            self.particles.emit(confetti(self.board_rect, list(self.COLORS.values())))
         elif self.steps >= MAX_STEPS:
             self._show_status("lose", LOSE_COLOR)
             self.lost = True
