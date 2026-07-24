@@ -1,12 +1,15 @@
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 import pygame as pg
+
+LEFT_BUTTON = 1
 
 
 @dataclass
 class _EventEntry:
-    check: Callable
+    obj: Any
     func: Callable
     func_args: list = field(default_factory=list)
     func_kwargs: dict = field(default_factory=dict)
@@ -31,18 +34,38 @@ class ClickEventListen:
             raise AttributeError(f"{obj!r} 缺少 'check_click' 方法")
         self.check_list.append(
             _EventEntry(
-                check=obj.check_click,
+                obj=obj,
                 func=func,
                 func_args=func_args or [],
                 func_kwargs=func_kwargs,
             )
         )
 
+    def _set_state(self, name: str, entry: _EventEntry, value: bool):
+        """调用对象上可选的状态设置方法（set_hover / set_pressed）。"""
+        setter = getattr(entry.obj, name, None)
+        if setter is not None:
+            setter(value)
+
     def listen(self, event: pg.event.Event):
-        """监测事件并调用对应的处理函数。"""
-        if event.type != pg.MOUSEBUTTONDOWN:
+        """监测事件并更新交互状态、调用对应的处理函数。"""
+        if event.type == pg.MOUSEMOTION:
+            for entry in self.check_list:
+                self._set_state("set_hover", entry, entry.obj.check_click(event.pos))
             return
-        for entry in self.check_list:
-            if entry.check(event.pos):
-                entry.func(*entry.func_args, **entry.func_kwargs)
-                return
+
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == LEFT_BUTTON:
+            for entry in self.check_list:
+                self._set_state("set_pressed", entry, entry.obj.check_click(event.pos))
+            return
+
+        if event.type == pg.MOUSEBUTTONUP and event.button == LEFT_BUTTON:
+            # 先清空所有按下状态再触发回调，避免回调重建界面后状态残留
+            fired = None
+            for entry in self.check_list:
+                was_pressed = getattr(entry.obj, "pressed", False)
+                self._set_state("set_pressed", entry, False)
+                if fired is None and was_pressed and entry.obj.check_click(event.pos):
+                    fired = entry
+            if fired is not None:
+                fired.func(*fired.func_args, **fired.func_kwargs)
