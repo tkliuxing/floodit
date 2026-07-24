@@ -20,7 +20,9 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
     * `1`–`6` — pick the matching color
     * `R` or `F2` — start a new game
     * `L` — switch the interface language
+    * `F11` — toggle fullscreen
     * `Esc` or `Q` — quit
+* **Window**: The window is resizable — drag any edge and the whole board scales to fit while keeping its aspect ratio.
 * **Language**: The interface follows your system locale. Set `FLOODIT_LANG=en` or `FLOODIT_LANG=zh` to override it.
 * **Rules**:
     * **Win Condition**: The game is won when all tiles in the grid are the same color.
@@ -38,7 +40,9 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
     * `1`–`6` —— 选择对应颜色
     * `R` 或 `F2` —— 开始新游戏
     * `L` —— 切换界面语言
+    * `F11` —— 切换全屏
     * `Esc` 或 `Q` —— 退出
+* **窗口**：窗口可自由缩放——拖动任意边缘，整个棋盘会等比缩放适配，不会变形。
 * **语言**：界面语言默认跟随系统区域设置，可用 `FLOODIT_LANG=en` 或 `FLOODIT_LANG=zh` 覆盖。
 * **规则**：
     * **胜负判定**：当整个棋盘格仅剩一种颜色时，游戏胜利；如果在达到指定步数前未完成，则游戏失败。

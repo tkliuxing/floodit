@@ -97,7 +97,11 @@ class Floodit:
         self.TABLE_SIZE = table_size
         self.TABLE_POSITION = table_position
         self.BLOCK_SIDE = block_side
-        self.display = pg.display.set_mode(self.WINDOW_SIZE)
+        # SCALED：把 WINDOW_SIZE 当作固定的逻辑分辨率，SDL 负责等比缩放填满窗口
+        # 并自动把鼠标坐标映射回逻辑空间——于是全部布局与命中检测代码无需改动，
+        # 就能支持任意窗口尺寸。RESIZABLE：允许拖拽窗口边缘缩放。两者配合，
+        # 画面按比例放大/缩小、超出的边用背景色补齐（letterbox），不会变形。
+        self.display = pg.display.set_mode(self.WINDOW_SIZE, pg.SCALED | pg.RESIZABLE)
         # 关掉 SDL 文本输入。视频初始化后它默认开启，会把键盘事件先送进
         # 输入法(IME)合成——中日韩输入法开着时，按 1-6 / R / L 会被输入法
         # 吞掉，游戏收不到干净的 KEYDOWN。本游戏不需要文字录入，直接关掉。
@@ -222,10 +226,19 @@ class Floodit:
             )
         self.events.register_key([pg.K_r, pg.K_F2], self.reset)
         self.events.register_key([pg.K_l], self.cycle_language)
+        self.events.register_key([pg.K_F11], self.toggle_fullscreen)
         self.events.register_key([pg.K_ESCAPE, pg.K_q], self.quit)
 
     def quit(self):
         sys.exit(0)
+
+    def toggle_fullscreen(self):
+        """在窗口与全屏之间切换。SCALED 下画面会等比铺满屏幕。"""
+        try:
+            pg.display.toggle_fullscreen()
+        except pg.error:
+            # 部分无头/精简环境不支持切换全屏，忽略即可
+            pass
 
     def cycle_language(self):
         """切换界面语言并重绘所有文案。"""
