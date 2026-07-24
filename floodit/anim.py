@@ -1,4 +1,4 @@
-"""按时间推进的填充动画。
+"""按时间推进的棋盘动画。
 
 动画进度只由累积的真实时间决定，与帧率和棋盘尺寸都无关：
 整段波纹的时长固定为 WAVE_TIME，层数越多每层间隔越短。
@@ -16,6 +16,11 @@ MAX_LAYER_DELAY = 0.05
 MIN_SCALE = 0.55
 # 刚变色时叠加的高光强度，随进度衰减到 0
 FLASH = 0.35
+
+# 开局铺开整个棋盘的目标时长（秒）
+REVEAL_TIME = 0.55
+# 开局时单个格子的弹出时长（秒）
+REVEAL_CELL_DURATION = 0.26
 
 
 def lerp(a: float, b: float, t: float) -> float:
@@ -115,6 +120,87 @@ class FloodAnimation:
             )
             inner_rect = pg.Rect(left + offset, top + offset, inner, inner)
             pg.draw.rect(screen, color, inner_rect)
+
+            if progress < 1:
+                still_pending.append((x, y, start))
+        self.pending = still_pending
+
+
+class RevealAnimation:
+    """开局把棋盘逐格铺开的动画。
+
+    格子按到左上角的对角线距离分批出现，和填充波纹同源，
+    所以开局的观感和落子时的扩散是一致的。
+    """
+
+    def __init__(
+        self,
+        table,
+        colors: dict,
+        bg_color: tuple,
+        reveal_time: float = REVEAL_TIME,
+        cell_duration: float = REVEAL_CELL_DURATION,
+    ):
+        """
+        table: GameTable，提供 ary / pos / side
+        colors: 数字到颜色的映射
+        bg_color: 尚未出现的格子露出的底色
+        """
+        self.table = table
+        self.colors = colors
+        self.bg_color = bg_color
+        self.cell_duration = cell_duration
+
+        cols = table.size[0]
+        rows = table.size[1]
+        # 对角线波数：右下角那格的 x+y 最大
+        waves = max(1, cols + rows - 1)
+        self.wave_delay = reveal_time / waves
+        self.pending = [
+            (x, y, (x + y) * self.wave_delay) for y in range(rows) for x in range(cols)
+        ]
+        self.elapsed = 0.0
+        self.total = (waves - 1) * self.wave_delay + cell_duration
+
+    @property
+    def done(self) -> bool:
+        return not self.pending
+
+    def progress_of(self, start: float) -> float:
+        """某个格子当前的出现进度，取值 0..1。"""
+        if self.cell_duration <= 0:
+            return 1.0
+        return max(0.0, min(1.0, (self.elapsed - start) / self.cell_duration))
+
+    def update(self, dt: float):
+        """按经过的秒数推进动画。"""
+        self.elapsed += dt
+
+    def draw(self, screen: pg.Surface):
+        """只重绘正在出现的格子，画完的移出队列。"""
+        side = self.table.side
+        pos_x = self.table.pos_x
+        pos_y = self.table.pos_y
+        still_pending = []
+        for x, y, start in self.pending:
+            progress = self.progress_of(start)
+            if progress <= 0:
+                still_pending.append((x, y, start))
+                continue
+
+            left = pos_x + x * side
+            top = pos_y + y * side
+            cell = pg.Rect(left, top, side, side)
+            # 先抹掉上一帧的残留，再把格子按当前尺寸画出来
+            pg.draw.rect(screen, self.bg_color, cell)
+
+            scale = MIN_SCALE + (1 - MIN_SCALE) * ease_out_back(progress)
+            inner = max(1, min(side, round(side * scale)))
+            offset = (side - inner) // 2
+            color = self.colors[self.table.ary[y][x]]
+            pg.draw.rect(
+                screen, color, pg.Rect(left + offset, top + offset, inner, inner)
+            )
 
             if progress < 1:
                 still_pending.append((x, y, start))

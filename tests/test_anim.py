@@ -5,6 +5,7 @@ import pytest
 from floodit.anim import (
     MAX_LAYER_DELAY,
     FloodAnimation,
+    RevealAnimation,
     ease_out_back,
     ease_out_cubic,
     lerp,
@@ -98,3 +99,78 @@ class TestProgress:
     def test_zero_duration_completes_at_once(self):
         a = anim(cell_duration=0)
         assert a.progress_of(0.0) == 1.0
+
+
+class FakeTable:
+    """RevealAnimation 只用到 ary / size / pos / side。"""
+
+    def __init__(self, cols, rows, side=10, pos=(0, 0)):
+        self.ary = [[1 for _ in range(cols)] for _ in range(rows)]
+        self.size = (cols, rows)
+        self.pos_x, self.pos_y = pos
+        self.side = side
+
+
+def reveal(cols=4, rows=3, **kwargs):
+    return RevealAnimation(
+        FakeTable(cols, rows), {1: (0, 0, 0)}, (255, 255, 255), **kwargs
+    )
+
+
+class TestReveal:
+    def test_every_cell_is_queued(self):
+        assert len(reveal(4, 3).pending) == 12
+        assert not reveal(4, 3).done
+
+    def test_cells_appear_along_the_diagonal(self):
+        r = reveal(4, 3)
+        starts = {(x, y): s for x, y, s in r.pending}
+        # 同一条对角线上的格子同时出现，越靠右下越晚
+        assert starts[(1, 0)] == pytest.approx(starts[(0, 1)])
+        assert starts[(0, 0)] < starts[(1, 0)] < starts[(2, 0)]
+
+    def test_top_left_starts_immediately(self):
+        starts = {(x, y): s for x, y, s in reveal().pending}
+        assert starts[(0, 0)] == 0.0
+
+    def test_total_duration_is_bounded_regardless_of_board_size(self):
+        # 关键性质：棋盘越大只是每格间隔越短，总时长有上界，
+        # 不像"每帧铺一条对角线"那样随边长线性增长。
+        ceiling = 0.5 + 0.26  # reveal_time + cell_duration
+        sizes = [(2, 2), (4, 4), (15, 15), (40, 40), (200, 200)]
+        totals = [reveal(c, r, reveal_time=0.5).total for c, r in sizes]
+        assert all(t <= ceiling for t in totals), "总时长突破了上界"
+        # 越大的棋盘越贴近上界，但永远收敛而不是线性增长：
+        # 边长从 15 涨到 200，总时长变化不到 0.05 秒
+        realistic = [reveal(n, n, reveal_time=0.5).total for n in (15, 40, 100, 200)]
+        assert max(realistic) - min(realistic) < 0.05
+
+    def test_per_cell_delay_shrinks_as_board_grows(self):
+        assert reveal(40, 40).wave_delay < reveal(4, 4).wave_delay
+
+    def test_progress_is_clamped(self):
+        r = reveal()
+        assert r.progress_of(0.0) == 0.0
+        r.update(999)
+        assert r.progress_of(0.0) == 1.0
+
+    def test_zero_duration_completes_at_once(self):
+        assert reveal(cell_duration=0).progress_of(0.0) == 1.0
+
+    def test_single_cell_board_is_handled(self):
+        r = reveal(1, 1)
+        assert len(r.pending) == 1
+        assert r.total > 0
+
+    def test_finishes_after_total_elapses(self):
+        import pygame as pg
+
+        pg.init()
+        surface = pg.Surface((100, 100))
+        r = reveal(4, 3)
+        for _ in range(200):
+            r.update(1 / 60)
+            r.draw(surface)
+            if r.done:
+                break
+        assert r.done, "铺开动画未在合理时间内结束"

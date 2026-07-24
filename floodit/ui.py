@@ -26,6 +26,9 @@ def _luma(color: tuple) -> float:
 
 LIGHT_THRESHOLD = 200
 
+# 未显式传入字体时的兜底字号
+DEFAULT_FONT_SIZE = 20
+
 
 class Button:
     """游戏操作按钮"""
@@ -36,8 +39,7 @@ class Button:
         size: tuple,
         color: tuple = (250, 250, 252),
         text: str = "",
-        fontname: str = "AR PL UMing CN",
-        fontsize: int = 20,
+        font: pg.font.Font = None,
         radius: int = 6,
         text_color: tuple = (45, 48, 54),
     ):
@@ -48,8 +50,7 @@ class Button:
         size: (宽度, 高度)
         color: 按钮背景色
         text: 按钮文字
-        fontname: 按钮字体名称
-        fontsize: 按钮字体大小
+        font: 已解析好的字体对象；为 None 时用 pygame 内置字体
         radius: 圆角半径（像素）
         text_color: 按钮文字颜色
         """
@@ -73,8 +74,14 @@ class Button:
         self.hovered = False
         self.pressed = False
 
-        self.font = pg.font.SysFont(fontname, fontsize)
-        self.text = self.font.render(text, True, text_color)
+        self.font = font or pg.font.Font(None, DEFAULT_FONT_SIZE)
+        self.text_color = text_color
+        self.set_text(text)
+
+    def set_text(self, text: str):
+        """替换按钮文字并重新居中，用于切换语言。"""
+        self.label = text
+        self.text = self.font.render(text, True, self.text_color)
         self.textpos = self.text.get_rect()
         self.textpos.centerx = (self.x + self.x1) // 2
         self.textpos.centery = (self.y + self.y1) // 2

@@ -16,6 +16,12 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
     * The game starts from the top-left area of the grid.
     * Click the color buttons on the right to change the current region's color.
     * **Color Propagation**: When a region changes color, all adjacent tiles of the same color will change color simultaneously (with a smooth animation effect).
+* **Keyboard shortcuts**:
+    * `1`–`6` — pick the matching color
+    * `R` or `F2` — start a new game
+    * `L` — switch the interface language
+    * `Esc` or `Q` — quit
+* **Language**: The interface follows your system locale. Set `FLOODIT_LANG=en` or `FLOODIT_LANG=zh` to override it.
 * **Rules**:
     * **Win Condition**: The game is won when all tiles in the grid are the same color.
     * **Loss Condition**: The game is lost if you exceed the maximum number of steps.
@@ -28,6 +34,12 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
     * 游戏从棋盘格的左上角区域开始。
     * 点击界面右侧对应的颜色块，将当前连接区域的颜色替换为目标颜色。
     * **颜色传播**：颜色变化具有“扩散”效果：当改变当前区域颜色时，与其相邻且颜色相同的方块也会同步改变颜色。
+* **键盘快捷键**：
+    * `1`–`6` —— 选择对应颜色
+    * `R` 或 `F2` —— 开始新游戏
+    * `L` —— 切换界面语言
+    * `Esc` 或 `Q` —— 退出
+* **语言**：界面语言默认跟随系统区域设置，可用 `FLOODIT_LANG=en` 或 `FLOODIT_LANG=zh` 覆盖。
 * **规则**：
     * **胜负判定**：当整个棋盘格仅剩一种颜色时，游戏胜利；如果在达到指定步数前未完成，则游戏失败。
     * **得分机制**：使用的总步数越少，得分越高。
