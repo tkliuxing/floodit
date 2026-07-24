@@ -62,6 +62,9 @@ STATUS_FONT_SIZE = int(28 * ZOOM)
 # 圆角半径
 NEW_GAME_RADIUS = int(8 * ZOOM)
 SWATCH_RADIUS = int(5 * ZOOM)
+# 色块上方数字键标号的字号，以及数字底边与色块顶边的间距
+SWATCH_LABEL_FONT_SIZE = int(13 * ZOOM)
+SWATCH_LABEL_GAP = int(3 * ZOOM)
 
 # --- 新手引导 ---------------------------------------------------------------
 # 引导文案的字号，以及行间距
@@ -108,6 +111,7 @@ class Floodit:
         self.status_font = fonts.resolve(STATUS_FONT_SIZE, sample)
         self.hint_font = fonts.resolve(HINT_FONT_SIZE, sample)
         self.hint_keys_font = fonts.resolve(HINT_KEYS_FONT_SIZE, sample)
+        self.swatch_label_font = fonts.resolve(SWATCH_LABEL_FONT_SIZE, sample)
         pg.display.set_caption(self.i18n.t("title"))
 
         self.screen.fill(BG_COLOR)
@@ -399,10 +403,24 @@ class Floodit:
         return bool(self.particles.active or self.ripples or self.shake)
 
     def _draw_buttons(self):
-        """重绘全部按钮，使悬停/按下状态即时可见。"""
+        """重绘全部按钮，使悬停/按下状态即时可见，并标出对应的数字键。"""
         self.rb.show(self.screen)
-        for button in self.color_buttons:
+        for index, button in enumerate(self.color_buttons):
             button.show(self.screen)
+            # 只有前 9 个色块绑定了数字键（见 _register_keys），其余不标号
+            if index < 9:
+                self._draw_swatch_label(index, button)
+
+    def _draw_swatch_label(self, index: int, button: Button):
+        """在色块上方标出它对应的数字键，让键鼠对应关系一眼可见。"""
+        img = self.swatch_label_font.render(str(index + 1), True, TEXT_COLOR)
+        rect = img.get_rect(
+            centerx=button.rect.centerx,
+            bottom=button.rect.top - SWATCH_LABEL_GAP,
+        )
+        # 先用背景色抹掉上一帧的字：抗锯齿文字每帧叠画会让边缘越来越糊
+        self.screen.fill(BG_COLOR, rect)
+        self.screen.blit(img, rect)
 
     def _draw_steps(self):
         """在 New Game 按钮下方显示当前步数。"""
