@@ -3,7 +3,7 @@ import sys
 
 import pygame as pg
 
-from . import fill, filters, fonts
+from . import fill, filters, fonts, overlay
 from .anim import FloodAnimation, RevealAnimation
 from .event import ClickEventListen
 from .i18n import Translator
@@ -63,6 +63,16 @@ STATUS_FONT_SIZE = int(28 * ZOOM)
 NEW_GAME_RADIUS = int(8 * ZOOM)
 SWATCH_RADIUS = int(5 * ZOOM)
 
+# --- 新手引导 ---------------------------------------------------------------
+# 引导文案的字号，以及行间距
+HINT_FONT_SIZE = int(14 * ZOOM)
+HINT_KEYS_FONT_SIZE = int(12 * ZOOM)
+HINT_LINE_GAP = int(3 * ZOOM)
+# 提示文字的颜色（比正文更淡，不与棋盘抢注意力）
+HINT_COLOR = (110, 116, 128)
+# 落子后引导淡出的时长（秒）
+HINT_FADE_TIME = 0.45
+
 
 class Floodit:
     """游戏主类"""
@@ -92,6 +102,8 @@ class Floodit:
         sample = self.i18n.sample()
         self.font = fonts.resolve(FONT_SIZE, sample)
         self.status_font = fonts.resolve(STATUS_FONT_SIZE, sample)
+        self.hint_font = fonts.resolve(HINT_FONT_SIZE, sample)
+        self.hint_keys_font = fonts.resolve(HINT_KEYS_FONT_SIZE, sample)
         pg.display.set_caption(self.i18n.t("title"))
 
         self.screen.fill(BG_COLOR)
@@ -158,6 +170,13 @@ class Floodit:
         self.particles = ParticleSystem()
         self.ripples = []
         self.shake = None
+        # 领地、悬停预览与新手引导
+        self.owned = set()
+        self.preview_key = None
+        self.preview_cells = set()
+        self.pulse = overlay.Pulse()
+        self.hint_alpha = 1.0
+        self._hint_cache = None
 
         self._draw_buttons()
         self._draw_steps()
@@ -189,12 +208,134 @@ class Floodit:
         self.rb.set_text(self.i18n.t("new_game"))
         self._draw_buttons()
         self._draw_steps()
+        self._hint_cache = None
         # 胜负提示正显示时也要跟着换语言
         if self.won:
             self._show_status("win", WIN_COLOR)
         elif self.lost:
             self._show_status("lose", LOSE_COLOR)
         self.show()
+
+    # --- 领地 / 预览 / 引导 ---------------------------------------------
+    def _sync_owned(self):
+        """重算当前领地。落子结束、开新局后调用。"""
+        self.owned = fill.region_cells(self.table.ary)
+
+    @property
+    def accepting_input(self) -> bool:
+        """此刻是否接受落子。预览只在能落子时才有意义。"""
+        return not (self.won or self.lost or self.animation or self.reveal)
+
+    def sync_preview(self):
+        """按当前悬停的色块更新预览，只在悬停目标变化时重算。"""
+        target = None
+        if self.accepting_input:
+            for number, button in zip(self.COLORS, self.color_buttons, strict=True):
+                if button.hovered:
+                    target = number
+                    break
+        if target == self.preview_key:
+            return
+        self.preview_key = target
+        if target is None:
+            self.preview_cells = set()
+        else:
+            self.preview_cells = fill.region_after(self.table.ary, target) - self.owned
+
+    @property
+    def hint_visible(self) -> bool:
+        return self.hint_alpha > 0
+
+    def _invalidate_hint(self):
+        """让引导文案重新排版（领地格数会随落子变化）。
+
+        淡出与否由 update_hint 按 steps 判定，误点当前色不算落子，
+        引导会继续留着。
+        """
+        self._hint_cache = None
+
+    def _hint_lines(self) -> list:
+        """引导文案：目标、领地位置、下一步该做什么，外加快捷键小字。"""
+        return [
+            (self.i18n.t("hint_goal"), TEXT_COLOR, self.hint_font),
+            (
+                self.i18n.t("hint_origin", cells=len(self.owned)),
+                HINT_COLOR,
+                self.hint_font,
+            ),
+            (self.i18n.t("hint_pick"), HINT_COLOR, self.hint_font),
+            (self.i18n.t("hint_keys"), HINT_COLOR, self.hint_keys_font),
+        ]
+
+    def _hint_surface(self) -> pg.Surface:
+        """把引导文案渲染成一张可整体调透明度的图，并缓存。"""
+        if self._hint_cache is not None:
+            return self._hint_cache
+        width = self.status_rect.width
+        # 逐行折行后再渲染，任何语言都不会溢出面板
+        images = []
+        for text, color, font in self._hint_lines():
+            for line in fonts.wrap(font, text, width):
+                images.append(font.render(line, True, color))
+        height = sum(img.get_height() for img in images)
+        height += HINT_LINE_GAP * (len(images) - 1)
+        surf = pg.Surface((width, height), pg.SRCALPHA)
+        y = 0
+        for img in images:
+            surf.blit(img, img.get_rect(centerx=width // 2, y=y))
+            y += img.get_height() + HINT_LINE_GAP
+        self._hint_cache = surf
+        return surf
+
+    def update_hint(self, dt: float):
+        """落子之后把引导淡出。"""
+        if self.steps > 0 and self.hint_alpha > 0:
+            self.hint_alpha = max(0.0, self.hint_alpha - dt / HINT_FADE_TIME)
+
+    def _draw_overlay(self, offset: tuple):
+        """在窗口副本上叠加领地描边、悬停预览与起点标记。
+
+        必须在融合滤镜之后调用，否则描边会被一起糊掉。
+        """
+        pos = (self.TABLE_POSITION[0] + offset[0], self.TABLE_POSITION[1] + offset[1])
+        side = self.BLOCK_SIDE
+        if self.reveal or not self.owned:
+            return
+
+        if self.preview_cells:
+            overlay.highlight_cells(self.display, self.preview_cells, pos, side)
+        overlay.region_outline(self.display, self.owned, pos, side)
+        if self.preview_cells:
+            overlay.region_outline(
+                self.display,
+                self.owned | self.preview_cells,
+                pos,
+                side,
+                width=overlay.PREVIEW_OUTLINE_WIDTH,
+                inner=None,
+            )
+        # 第一步之前，用脉动圆环把视线引到起点
+        if self.hint_visible and self.steps == 0:
+            overlay.origin_marker(self.display, pos, side, self.pulse.value)
+
+        if self.hint_visible:
+            surf = self._hint_surface()
+            surf.set_alpha(round(255 * self.hint_alpha))
+            self.display.blit(
+                surf,
+                surf.get_rect(centerx=self.status_rect.centerx, y=self.status_rect.y),
+            )
+
+    def _draw_preview_gain(self):
+        """在步数下方显示这一步能吃到多少格。"""
+        if not self.preview_cells:
+            return
+        text = self.i18n.t("preview_gain", cells=len(self.preview_cells))
+        img = self.hint_font.render(text, True, TEXT_COLOR)
+        self.display.blit(
+            img,
+            img.get_rect(centerx=self.steps_rect.centerx, y=self.steps_rect.bottom + 2),
+        )
 
     @property
     def board_rect(self) -> pg.Rect:
@@ -218,6 +359,7 @@ class Floodit:
         if self.reveal.done:
             self.reveal = None
             self.table.draw(self.screen, self.COLORS)
+            self._sync_owned()
 
     def show(self):
         """把离屏画面贴到窗口，再把特效叠在最上层。"""
@@ -230,6 +372,8 @@ class Floodit:
         filters.blend_rect(
             self.display, self.board_rect.move(offset), self.TABLE_SIZE, filters.CELL_PX
         )
+        self._draw_overlay(offset)
+        self._draw_preview_gain()
         for ripple in self.ripples:
             ripple.draw(self.display)
         self.particles.draw(self.display)
@@ -272,10 +416,12 @@ class Floodit:
             button = self.color_buttons[list(self.COLORS).index(number)]
             self.ripples.append(Ripple(button.rect.center, self.COLORS[number]))
             src = self.table.ary[0][0]
+            # 序列为空 <=> 点的就是当前领地的颜色，棋盘不会有任何变化。
+            # 这种多半是误点，不计步也不判负，只留一个涟漪表示点击已被接收。
             sequence = fill.get_fill_sequence(self.table.ary, number)
-            self.steps += 1
-            self._draw_steps()
             if sequence:
+                self.steps += 1
+                self._draw_steps()
                 # 逻辑状态立刻落盘，屏幕上的旧色由动画逐格覆盖
                 for layer in sequence:
                     for x, y, color in layer:
@@ -283,8 +429,10 @@ class Floodit:
                 self.animation = FloodAnimation(
                     sequence, self.COLORS[src], self.COLORS[number]
                 )
-            else:
-                self._check_end()
+                # 棋盘变了，缓存的引导文案和悬停预览都失效
+                self._invalidate_hint()
+                self.preview_key = None
+                self.preview_cells = set()
         self.show()
 
     def _check_end(self):
@@ -307,6 +455,7 @@ class Floodit:
             self.animation = None
             # 动画逐格绘制，收尾时整块重绘一次以保证和逻辑状态一致
             self.table.draw(self.screen, self.COLORS)
+            self._sync_owned()
             self._check_end()
 
     def _emit_debris(self, cells: list, color: tuple):
@@ -343,6 +492,11 @@ class Floodit:
         self.particles.clear()
         self.ripples.clear()
         self.shake = None
+        self.owned = set()
+        self.preview_key = None
+        self.preview_cells = set()
+        self.hint_alpha = 1.0
+        self._hint_cache = None
         self.table = GameTable(
             self.COLORS.keys(),
             self.TABLE_SIZE,
@@ -368,6 +522,9 @@ class Floodit:
             elif self.animation:
                 self.update_animation(dt)
             self.update_effects(dt)
+            self.pulse.update(dt)
+            self.update_hint(dt)
+            self.sync_preview()
 
             self._draw_buttons()
             self.show()

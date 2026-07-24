@@ -70,3 +70,41 @@ class TestResolve:
         small = fonts.resolve(12, "Steps")
         big = fonts.resolve(30, "Steps")
         assert big.get_height() > small.get_height()
+
+
+class TestWrap:
+    @pytest.fixture
+    def font(self):
+        return pg.font.Font(None, 20)
+
+    def test_short_text_stays_on_one_line(self, font):
+        assert fonts.wrap(font, "hi", 500) == ["hi"]
+
+    def test_empty_text_yields_one_empty_line(self, font):
+        assert fonts.wrap(font, "", 100) == [""]
+
+    def test_long_text_is_split(self, font):
+        lines = fonts.wrap(font, "the quick brown fox jumps over it", 80)
+        assert len(lines) > 1
+
+    def test_every_line_fits(self, font):
+        text = "Fill the board with one colour and win"
+        for line in fonts.wrap(font, text, 90):
+            assert font.size(line)[0] <= 90
+
+    def test_no_words_are_lost(self, font):
+        text = "the quick brown fox jumps over the lazy dog"
+        joined = " ".join(fonts.wrap(font, text, 70)).split()
+        assert joined == text.split()
+
+    def test_cjk_without_spaces_is_split_by_character(self, font):
+        # 中文整句没有空格，必须逐字断行，否则会溢出被裁掉
+        text = "把整盘变成同一种颜色再来一次"
+        lines = fonts.wrap(font, text, 40)
+        assert len(lines) > 1
+        assert "".join(lines) == text
+
+    def test_narrow_width_still_terminates(self, font):
+        # 宽度比单个字符还窄时不能死循环
+        lines = fonts.wrap(font, "abcdef", 1)
+        assert "".join(lines) == "abcdef"

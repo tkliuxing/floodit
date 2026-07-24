@@ -52,6 +52,40 @@ def get_fill_sequence(ary: list, number: int, start_x: int = 0, start_y: int = 0
     return sequence
 
 
+def region_cells(ary: list, start_x: int = 0, start_y: int = 0) -> set:
+    """
+    返回与 (start_x, start_y) 连通且同色的所有格子坐标。
+    这就是玩家当前拥有的"领地"。
+    """
+    rows = len(ary)
+    cols = len(ary[0])
+    src = ary[start_y][start_x]
+
+    seen = {(start_x, start_y)}
+    stack = [(start_x, start_y)]
+    while stack:
+        x, y = stack.pop()
+        for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < cols and 0 <= ny < rows:
+                if (nx, ny) not in seen and ary[ny][nx] == src:
+                    seen.add((nx, ny))
+                    stack.append((nx, ny))
+    return seen
+
+
+def region_after(ary: list, number: int) -> set:
+    """
+    返回"若选择 number 这个颜色"之后的领地，用于悬停预览。
+    不修改传入的棋盘。
+    """
+    board = [row[:] for row in ary]
+    for layer in get_fill_sequence(board, number):
+        for x, y, color in layer:
+            board[y][x] = color
+    return region_cells(board)
+
+
 def filldone(ary: list) -> bool:
     """判断二维数组是否已全部填充为同一个值。"""
     src = ary[0][0]

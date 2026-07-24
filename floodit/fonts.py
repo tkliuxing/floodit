@@ -91,6 +91,44 @@ def can_render(font: pg.font.Font, text: str) -> bool:
     return True
 
 
+def wrap(font: pg.font.Font, text: str, max_width: int) -> list:
+    """把 text 折成不超过 max_width 的若干行。
+
+    先按空格断词；单个"词"仍然超宽时逐字断开——中文没有空格，
+    整句会被当成一个词，必须有这条兜底，否则文字会溢出面板被裁掉。
+    """
+    if not text:
+        return [""]
+
+    lines = []
+    current = ""
+
+    def flush():
+        nonlocal current
+        if current:
+            lines.append(current)
+            current = ""
+
+    for word in text.split(" "):
+        candidate = f"{current} {word}".strip() if current else word
+        if font.size(candidate)[0] <= max_width:
+            current = candidate
+            continue
+        flush()
+        if font.size(word)[0] <= max_width:
+            current = word
+            continue
+        # 单词本身就超宽（典型是一整句中文），逐字塞
+        for ch in word:
+            if font.size(current + ch)[0] <= max_width:
+                current += ch
+            else:
+                flush()
+                current = ch
+    flush()
+    return lines or [""]
+
+
 def resolve(size: int, sample: str = "", names: list = None) -> pg.font.Font:
     """挑一个能画出 sample 的字体。
 

@@ -92,25 +92,28 @@ class TestGameStateMachine:
 
     MAX_STEPS = 30
 
-    def play(self, seed: int, pick) -> tuple:
+    def play(self, seed: int, pick, max_clicks: int = 500) -> tuple:
+        """复刻一局。点到当前色不计步，所以要给点击次数一个上界：
+        只点当前色的策略永远不会推进，靠步数上限是停不下来的。"""
         ary = random_board(seed=seed)
         steps = 0
+        clicks = 0
         won = lost = False
-        while not (won or lost):
+        while not (won or lost) and clicks < max_clicks:
+            clicks += 1
             sequence = get_fill_sequence(ary, pick(ary))
+            if not sequence:
+                # 点到当前色：棋盘不变、不计步、不判负
+                continue
             steps += 1
-            if sequence:
-                ary = apply_sequence(ary, sequence)
-                if filldone(ary):
-                    won = True
-                elif steps >= self.MAX_STEPS:
-                    lost = True
-            elif filldone(ary):
+            ary = apply_sequence(ary, sequence)
+            if filldone(ary):
                 won = True
             elif steps >= self.MAX_STEPS:
                 lost = True
-            assert steps <= self.MAX_STEPS, "对局未在步数上限内终止"
-        return "win" if won else "lose", steps
+            assert steps <= self.MAX_STEPS, "步数超出上限"
+        outcome = "win" if won else "lose" if lost else "unfinished"
+        return outcome, steps
 
     @pytest.mark.parametrize("seed", range(5))
     def test_greedy_play_terminates(self, seed):
@@ -124,11 +127,31 @@ class TestGameStateMachine:
         assert outcome in {"win", "lose"}
         assert steps <= self.MAX_STEPS
 
-    def test_clicking_current_color_still_consumes_steps(self):
-        """点击当前泛洪色不改变棋盘，但仍需计步，最终必然判负。"""
-        outcome, steps = self.play(0, lambda ary: ary[0][0])
-        assert outcome == "lose"
-        assert steps == self.MAX_STEPS
+    def test_clicking_current_color_is_free(self):
+        """点当前色多半是误点：棋盘不变，就不该计步，也不该因此判负。"""
+        outcome, steps = self.play(0, lambda ary: ary[0][0], max_clicks=100)
+        assert steps == 0, "误点当前色不应消耗步数"
+        assert outcome == "unfinished", "只点当前色不应把人点输"
+
+    def test_misclicks_do_not_eat_into_the_budget(self):
+        """真实落子之间夹杂误点，不影响最终步数。"""
+
+        def greedy(ary):
+            return max(
+                range(1, 7),
+                key=lambda n: sum(len(layer) for layer in get_fill_sequence(ary, n)),
+            )
+
+        clean, clean_steps = self.play(3, greedy)
+        # 每两次真实落子之间插一次误点
+        state = {"misclick": False}
+
+        def with_misclicks(ary):
+            state["misclick"] = not state["misclick"]
+            return ary[0][0] if state["misclick"] else greedy(ary)
+
+        noisy, noisy_steps = self.play(3, with_misclicks, max_clicks=500)
+        assert (noisy, noisy_steps) == (clean, clean_steps)
 
     def test_winning_board_is_detected(self):
         ary = [[1] * 5 for _ in range(5)]

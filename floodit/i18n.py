@@ -17,6 +17,11 @@ TRANSLATIONS = {
         "steps": "Steps: {steps} / {max_steps}",
         "win": "You Win!",
         "lose": "Game Over!",
+        "hint_goal": "Fill the board with one colour",
+        "hint_origin": "You start top-left: {cells} cells",
+        "hint_pick": "Pick a colour to grow it",
+        "hint_keys": "1-6 colour  R restart  L lang",
+        "preview_gain": "+{cells}",
     },
     "zh": {
         "title": "点格子",
@@ -24,6 +29,11 @@ TRANSLATIONS = {
         "steps": "步数：{steps} / {max_steps}",
         "win": "你赢了！",
         "lose": "游戏结束",
+        "hint_goal": "把整盘变成同一种颜色",
+        "hint_origin": "领地在左上角，现在 {cells} 格",
+        "hint_pick": "点下面的色块扩张领地",
+        "hint_keys": "1-6 选色   R 新局   L 语言",
+        "preview_gain": "+{cells} 格",
     },
 }
 
