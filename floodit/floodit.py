@@ -92,6 +92,10 @@ class Floodit:
         self.TABLE_POSITION = table_position
         self.BLOCK_SIDE = block_side
         self.display = pg.display.set_mode(self.WINDOW_SIZE)
+        # 关掉 SDL 文本输入。视频初始化后它默认开启，会把键盘事件先送进
+        # 输入法(IME)合成——中日韩输入法开着时，按 1-6 / R / L 会被输入法
+        # 吞掉，游戏收不到干净的 KEYDOWN。本游戏不需要文字录入，直接关掉。
+        pg.key.stop_text_input()
         # 游戏画面先画到离屏 surface，再整体贴到窗口上。
         # 这样震动可以整体位移，粒子叠在最上层且不会弄脏底下的画面。
         self.screen = pg.Surface(self.WINDOW_SIZE)
