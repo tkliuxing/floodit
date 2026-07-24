@@ -14,6 +14,10 @@ TRANSLATIONS = {
     "en": {
         "title": "Flood it!",
         "new_game": "New Game!",
+        "difficulty": "Difficulty: {name}",
+        "diff_easy": "Easy",
+        "diff_normal": "Normal",
+        "diff_hard": "Hard",
         "steps": "Steps: {steps} / {max_steps}",
         "win": "You Win!",
         "lose": "Game Over!",
@@ -26,6 +30,10 @@ TRANSLATIONS = {
     "zh": {
         "title": "点格子",
         "new_game": "新游戏",
+        "difficulty": "难度：{name}",
+        "diff_easy": "简单",
+        "diff_normal": "普通",
+        "diff_hard": "困难",
         "steps": "步数：{steps} / {max_steps}",
         "win": "你赢了！",
         "lose": "游戏结束",

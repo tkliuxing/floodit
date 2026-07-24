@@ -19,9 +19,11 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
 * **Keyboard shortcuts**:
     * `1`–`6` — pick the matching color
     * `R` or `F2` — start a new game
+    * `D` — cycle difficulty (Easy / Normal / Hard)
     * `L` — switch the interface language
     * `F11` — toggle fullscreen
     * `Esc` or `Q` — quit
+* **Difficulty**: Click the difficulty button (or press `D`) to cycle Easy (10×10, 20 steps), Normal (15×15, 30 steps) and Hard (20×20, 45 steps). Changing difficulty starts a fresh board.
 * **Window**: The window is resizable — drag any edge and the whole board scales to fit while keeping its aspect ratio.
 * **Language**: The interface follows your system locale. Set `FLOODIT_LANG=en` or `FLOODIT_LANG=zh` to override it.
 * **Rules**:
@@ -39,9 +41,11 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
 * **键盘快捷键**：
     * `1`–`6` —— 选择对应颜色
     * `R` 或 `F2` —— 开始新游戏
+    * `D` —— 切换难度（简单 / 普通 / 困难）
     * `L` —— 切换界面语言
     * `F11` —— 切换全屏
     * `Esc` 或 `Q` —— 退出
+* **难度**：点击难度按钮（或按 `D`）在简单（10×10，20 步）、普通（15×15，30 步）、困难（20×20，45 步）之间循环。切换难度会开始新的一局。
 * **窗口**：窗口可自由缩放——拖动任意边缘，整个棋盘会等比缩放适配，不会变形。
 * **语言**：界面语言默认跟随系统区域设置，可用 `FLOODIT_LANG=en` 或 `FLOODIT_LANG=zh` 覆盖。
 * **规则**：

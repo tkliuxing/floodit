@@ -19,9 +19,14 @@ from .ui import (
 
 ZOOM = 1
 WINDOW_SIZE = (int(580 * ZOOM), int(340 * ZOOM))
+# 棋盘固定占据一个方形区域：左上角 ORIGIN_POINT、边长 BOARD_PX。难度只改变
+# 网格数，格子边长由 BOARD_PX // 网格数 得到，棋盘在区域内居中——于是窗口
+# 尺寸与右侧面板位置都不随难度变化。
 ORIGIN_POINT = (int(20 * ZOOM), int(20 * ZOOM))
-TABLE_SIZE = (15, 15)
-BLOCK_SIZE = int(20 * ZOOM)
+BOARD_PX = int(300 * ZOOM)
+# 面板几何统一以固定的 UI_UNIT 为单位，与棋盘格子边长解耦，否则换难度会连带
+# 挪动整个右侧面板。
+UI_UNIT = int(20 * ZOOM)
 # 六色需要两两都能一眼分开，否则看不出连通区域的边界。
 # 色值经 CIE Lab ΔE 校验：最小两两 ΔE=71.6，最小亮度差=17.1
 # （纯 RGB 原色为 58.0 / 29.1，等亮度的柔和配色仅 33.9 / 2.7）。
@@ -40,7 +45,35 @@ TEXT_COLOR = (60, 64, 72)
 WIN_COLOR = (56, 142, 60)
 LOSE_COLOR = (198, 70, 70)
 
-MAX_STEPS = 30
+# --- 难度 -------------------------------------------------------------------
+# 每档只改网格大小与步数上限，颜色固定 6 种：这样右侧面板、1-6 键位、提示
+# 文案都不受影响，只有棋盘变密/变疏。网格数取 BOARD_PX(=300) 的因数，棋盘正好
+# 铺满区域（10->30px、15->20px、20->15px 每格）。
+DIFFICULTIES = [
+    {"key": "diff_easy", "grid": 10, "max_steps": 20},
+    {"key": "diff_normal", "grid": 15, "max_steps": 30},
+    {"key": "diff_hard", "grid": 20, "max_steps": 45},
+]
+# 默认普通，与旧版一致：15x15 / 30 步
+DEFAULT_DIFFICULTY = 1
+
+
+def board_geometry(preset: dict, board_px: int = None, origin: tuple = None):
+    """由难度预设算出棋盘几何。
+
+    返回 (网格尺寸, 格子边长, 棋盘左上角, 步数上限)。棋盘边长固定为 board_px，
+    格子边长由网格数整除得到，余下的边距用来把棋盘在区域内居中。抽成纯函数
+    便于脱离显示环境测试。
+    """
+    if board_px is None:
+        board_px = BOARD_PX
+    if origin is None:
+        origin = ORIGIN_POINT
+    grid = preset["grid"]
+    side = board_px // grid
+    offset = (board_px - grid * side) // 2
+    position = (origin[0] + offset, origin[1] + offset)
+    return (grid, grid), side, position, preset["max_steps"]
 
 # 单帧最大步进时间，防止窗口卡顿/拖动后一帧把整段动画跳完
 MAX_FRAME_TIME = 0.1
@@ -57,6 +90,9 @@ PANEL_GUTTER_BLOCKS = 1
 SWATCH_STRIDE_BLOCKS = 2
 # New Game 按钮高度占几格
 NEW_GAME_HEIGHT_BLOCKS = 2
+# 难度切换按钮：紧贴 New Game 下方，高度与到按钮的间距（像素）
+DIFF_MARGIN_TOP = int(8 * ZOOM)
+DIFF_HEIGHT = int(30 * ZOOM)
 # 步数文字区域与 New Game 按钮之间的间距、以及该区域的高度（像素）
 STEPS_MARGIN_TOP = int(10 * ZOOM)
 STEPS_HEIGHT = int(24 * ZOOM)
@@ -69,6 +105,8 @@ STATUS_MARGIN_TOP = int(28 * ZOOM)
 STATUS_HEIGHT = int(40 * ZOOM)
 # 字号
 FONT_SIZE = int(20 * ZOOM)
+# 难度按钮文字更长（"Difficulty: Normal"），用比 New Game 略小的字号才不溢出
+DIFF_FONT_SIZE = int(16 * ZOOM)
 STATUS_FONT_SIZE = int(28 * ZOOM)
 # 圆角半径
 NEW_GAME_RADIUS = int(8 * ZOOM)
@@ -97,17 +135,14 @@ class Floodit:
     def __init__(
         self,
         colors: dict = None,
-        window_size: tuple = WINDOW_SIZE,
-        table_size: tuple = TABLE_SIZE,
-        table_position: tuple = ORIGIN_POINT,
-        block_side: int = BLOCK_SIZE,
+        difficulty: int = DEFAULT_DIFFICULTY,
         lang: str = None,
     ):
         self.COLORS = colors if colors is not None else BLOCK_COLORS
-        self.WINDOW_SIZE = window_size
-        self.TABLE_SIZE = table_size
-        self.TABLE_POSITION = table_position
-        self.BLOCK_SIDE = block_side
+        self.WINDOW_SIZE = WINDOW_SIZE
+        # 棋盘几何（网格、格子边长、位置、步数上限）由难度决定
+        self.difficulty = difficulty % len(DIFFICULTIES)
+        self._apply_board_geometry(DIFFICULTIES[self.difficulty])
         # SCALED：把 WINDOW_SIZE 当作固定的逻辑分辨率，SDL 负责等比缩放填满窗口
         # 并自动把鼠标坐标映射回逻辑空间——于是全部布局与命中检测代码无需改动，
         # 就能支持任意窗口尺寸。RESIZABLE：允许拖拽窗口边缘缩放。两者配合，
@@ -126,6 +161,7 @@ class Floodit:
         # 字体按"所有语言的文案合集"来挑，否则运行时切到中文会变成空白
         sample = self.i18n.sample()
         self.font = fonts.resolve(FONT_SIZE, sample)
+        self.diff_font = fonts.resolve(DIFF_FONT_SIZE, sample)
         self.status_font = fonts.resolve(STATUS_FONT_SIZE, sample)
         self.hint_font = fonts.resolve(HINT_FONT_SIZE, sample)
         self.hint_keys_font = fonts.resolve(HINT_KEYS_FONT_SIZE, sample)
@@ -140,27 +176,34 @@ class Floodit:
             self.BLOCK_SIDE,
         )
 
-        # 右侧面板的左边缘，与棋盘之间空出 PANEL_GUTTER_BLOCKS 格
-        panel_x = self.TABLE_POSITION[0] + self.BLOCK_SIDE * (
-            self.TABLE_SIZE[0] + PANEL_GUTTER_BLOCKS
-        )
+        # 右侧面板：几何以固定的 UI_UNIT 和固定棋盘区域为基准，不随难度移动。
+        # 面板左缘与棋盘区域之间空出 PANEL_GUTTER_BLOCKS 个单位。
+        panel_x = ORIGIN_POINT[0] + BOARD_PX + UI_UNIT * PANEL_GUTTER_BLOCKS
         # 面板宽度正好容纳一排色块按钮（末尾不留空隙）
-        panel_w = self.BLOCK_SIDE * (len(self.COLORS) * SWATCH_STRIDE_BLOCKS - 1)
-        # 立体色块按钮：底边与棋盘底边对齐
-        board_bottom = self.TABLE_POSITION[1] + self.TABLE_SIZE[1] * self.BLOCK_SIDE
+        panel_w = UI_UNIT * (len(self.COLORS) * SWATCH_STRIDE_BLOCKS - 1)
+        # 立体色块按钮：底边与固定棋盘区域底边对齐
+        board_bottom = ORIGIN_POINT[1] + BOARD_PX
         swatch_y = board_bottom - SWATCH_SIZE
 
         self.rb = Button(
-            (panel_x, self.TABLE_POSITION[1]),
-            (panel_w, self.BLOCK_SIDE * NEW_GAME_HEIGHT_BLOCKS),
+            (panel_x, ORIGIN_POINT[1]),
+            (panel_w, UI_UNIT * NEW_GAME_HEIGHT_BLOCKS),
             text=self.i18n.t("new_game"),
             font=self.font,
+            radius=NEW_GAME_RADIUS,
+        )
+        # 难度切换按钮，紧贴 New Game 下方；点击或按 D 键循环 简单/普通/困难
+        self.diff_btn = Button(
+            (panel_x, self.rb.y1 + DIFF_MARGIN_TOP),
+            (panel_w, DIFF_HEIGHT),
+            text=self._difficulty_label(),
+            font=self.diff_font,
             radius=NEW_GAME_RADIUS,
         )
 
         # 步数、压力条与胜负提示的位置由按钮底边逐段推出，不再依赖魔数
         self.steps_rect = pg.Rect(
-            panel_x, self.rb.y1 + STEPS_MARGIN_TOP, panel_w, STEPS_HEIGHT
+            panel_x, self.diff_btn.y1 + STEPS_MARGIN_TOP, panel_w, STEPS_HEIGHT
         )
         self.steps_bar_rect = pg.Rect(
             panel_x,
@@ -177,6 +220,7 @@ class Floodit:
 
         self.events = ClickEventListen()
         self.events.register(self.rb, self.reset)
+        self.events.register(self.diff_btn, self.cycle_difficulty)
 
         # 初始化色块按钮：在 panel_w 内等距铺开，数字压在块内
         count = len(self.COLORS)
@@ -243,6 +287,7 @@ class Floodit:
             )
         self.events.register_key([pg.K_r, pg.K_F2], self.reset)
         self.events.register_key([pg.K_l], self.cycle_language)
+        self.events.register_key([pg.K_d], self.cycle_difficulty)
         self.events.register_key([pg.K_F11], self.toggle_fullscreen)
         self.events.register_key([pg.K_ESCAPE, pg.K_q], self.quit)
 
@@ -262,6 +307,7 @@ class Floodit:
         self.i18n.cycle()
         pg.display.set_caption(self.i18n.t("title"))
         self.rb.set_text(self.i18n.t("new_game"))
+        self.diff_btn.set_text(self._difficulty_label())
         self._draw_buttons()
         self._draw_steps()
         self._hint_cache = None
@@ -271,6 +317,32 @@ class Floodit:
         elif self.lost:
             self._show_status("lose", LOSE_COLOR)
         self.show()
+
+    # --- 难度 -----------------------------------------------------------
+    def _apply_board_geometry(self, preset: dict):
+        """按难度预设算出棋盘几何与步数上限。
+
+        棋盘边长固定为 BOARD_PX，格子边长由网格数整除得到，棋盘在固定区域内
+        居中——因此换难度不改变窗口尺寸与右侧面板位置。
+        """
+        (
+            self.TABLE_SIZE,
+            self.BLOCK_SIDE,
+            self.TABLE_POSITION,
+            self.max_steps,
+        ) = board_geometry(preset)
+
+    def _difficulty_label(self) -> str:
+        """难度按钮文字，如 "难度：普通"。"""
+        name = self.i18n.t(DIFFICULTIES[self.difficulty]["key"])
+        return self.i18n.t("difficulty", name=name)
+
+    def cycle_difficulty(self):
+        """循环切换到下一档难度并按新难度开局。"""
+        self.difficulty = (self.difficulty + 1) % len(DIFFICULTIES)
+        self._apply_board_geometry(DIFFICULTIES[self.difficulty])
+        self.diff_btn.set_text(self._difficulty_label())
+        self.reset()
 
     # --- 领地 / 预览 / 引导 ---------------------------------------------
     def _sync_owned(self):
@@ -455,6 +527,7 @@ class Floodit:
     def _draw_buttons(self):
         """重绘全部按钮，使悬停/按下状态即时可见。数字键标号已画在块内。"""
         self.rb.show(self.screen)
+        self.diff_btn.show(self.screen)
         # 立体色块按钮带半透明投影，逐帧叠画会越积越深，重绘前先抹底
         self.screen.fill(BG_COLOR, self.swatch_band)
         for button in self.color_buttons:
@@ -463,8 +536,8 @@ class Floodit:
     def _draw_steps(self):
         """在 New Game 按钮下方显示当前步数与压力条。"""
         pg.draw.rect(self.screen, BG_COLOR, self.steps_rect)
-        color = LOSE_COLOR if self.steps >= MAX_STEPS else TEXT_COLOR
-        message = self.i18n.t("steps", steps=self.steps, max_steps=MAX_STEPS)
+        color = LOSE_COLOR if self.steps >= self.max_steps else TEXT_COLOR
+        message = self.i18n.t("steps", steps=self.steps, max_steps=self.max_steps)
         text = self.font.render(message, True, color)
         self.screen.blit(text, text.get_rect(center=self.steps_rect.center))
         self._draw_pressure_bar()
@@ -477,7 +550,7 @@ class Floodit:
         bar = self.steps_bar_rect
         self.screen.fill(BG_COLOR, bar)
         pg.draw.rect(self.screen, PRESSURE_TRACK, bar, border_radius=STEPS_BAR_RADIUS)
-        ratio = self.steps / MAX_STEPS if MAX_STEPS else 0.0
+        ratio = self.steps / self.max_steps if self.max_steps else 0.0
         filled = round(bar.width * min(1.0, ratio))
         if filled > 0:
             fill_rect = pg.Rect(bar.x, bar.y, filled, bar.height)
@@ -521,7 +594,7 @@ class Floodit:
             self._show_status("win", WIN_COLOR)
             self.won = True
             self.particles.emit(confetti(self.board_rect, list(self.COLORS.values())))
-        elif self.steps >= MAX_STEPS:
+        elif self.steps >= self.max_steps:
             self._show_status("lose", LOSE_COLOR)
             self.lost = True
             self.shake = ScreenShake()

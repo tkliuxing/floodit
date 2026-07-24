@@ -27,7 +27,7 @@ def test_pressure_clamps_out_of_range():
 
 
 def _midpoint(a, b):
-    return tuple((x + y) // 2 for x, y in zip(a, b))
+    return tuple((x + y) // 2 for x, y in zip(a, b, strict=True))
 
 
 def test_pressure_interpolates_between_stops():
