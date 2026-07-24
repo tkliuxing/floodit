@@ -30,6 +30,7 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
     * **Win Condition**: The game is won when all tiles in the grid are the same color.
     * **Loss Condition**: The game is lost if you exceed the maximum number of steps.
     * **Scoring**: A higher score is achieved by using fewer steps.
+    * **Best score**: Your fewest steps to win are saved per difficulty and shown as a target under the step bar; beating it flashes a golden **New Record!**.
     * **Misclicks are free**: Clicking the color your region already has changes nothing, so it costs no step.
 
 ### 中文
@@ -51,6 +52,7 @@ The concept is based on the Chrome extension [Flood-It!](https://chrome.google.c
 * **规则**：
     * **胜负判定**：当整个棋盘格仅剩一种颜色时，游戏胜利；如果在达到指定步数前未完成，则游戏失败。
     * **得分机制**：使用的总步数越少，得分越高。
+    * **最佳成绩**：各难度的通关最少步数会被记录，作为目标显示在步数条下方；打破纪录会出现金色的**新纪录！**。
     * **误点不罚**：点击当前领地已有的颜色不会改变棋盘，因此不消耗步数。
 
 ---

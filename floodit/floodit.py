@@ -8,6 +8,7 @@ from .anim import FloodAnimation, RevealAnimation
 from .event import ClickEventListen
 from .i18n import Translator
 from .particle import ParticleSystem, Ripple, ScreenShake, burst, confetti
+from .scores import BestScores
 from .ui import (
     PRESSURE_TRACK,
     SHADOW_OFFSET,
@@ -44,6 +45,8 @@ BG_COLOR = (238, 240, 243)
 TEXT_COLOR = (60, 64, 72)
 WIN_COLOR = (56, 142, 60)
 LOSE_COLOR = (198, 70, 70)
+# 刷新最佳成绩时的提示用金色，与普通胜利区分开
+RECORD_COLOR = (201, 154, 32)
 
 # --- 难度 -------------------------------------------------------------------
 # 每档只改网格大小与步数上限，颜色固定 6 种：这样右侧面板、1-6 键位、提示
@@ -253,6 +256,10 @@ class Floodit:
 
         self._register_keys()
 
+        # 最佳成绩按难度持久化；is_record 记住本局胜利是否刷新了纪录，
+        # 供换语言时重绘正确的提示。
+        self.scores = BestScores()
+        self.is_record = False
         self.won = False
         self.lost = False
         self.steps = 0
@@ -313,7 +320,10 @@ class Floodit:
         self._hint_cache = None
         # 胜负提示正显示时也要跟着换语言
         if self.won:
-            self._show_status("win", WIN_COLOR)
+            if self.is_record:
+                self._show_status("record", RECORD_COLOR)
+            else:
+                self._show_status("win", WIN_COLOR)
         elif self.lost:
             self._show_status("lose", LOSE_COLOR)
         self.show()
@@ -454,12 +464,24 @@ class Floodit:
                 surf.get_rect(centerx=self.status_rect.centerx, y=self.status_rect.y),
             )
 
-    def _draw_preview_gain(self):
-        """在步数下方显示这一步能吃到多少格。"""
-        if not self.preview_cells:
-            return
-        text = self.i18n.t("preview_gain", cells=len(self.preview_cells))
-        img = self.hint_font.render(text, True, TEXT_COLOR)
+    def _draw_target_line(self):
+        """压力条下方的一行小字。
+
+        悬停色块时显示这一步能吃到多少格（+N），否则显示当前难度的最佳成绩，
+        给玩家一个可追赶的目标。两者互斥，共用同一行、每帧重画，不占额外版面。
+        """
+        if self.preview_cells:
+            text = self.i18n.t("preview_gain", cells=len(self.preview_cells))
+            color = TEXT_COLOR
+        else:
+            best = self.scores.best_for(DIFFICULTIES[self.difficulty]["key"])
+            text = (
+                self.i18n.t("best_none")
+                if best is None
+                else self.i18n.t("best", steps=best)
+            )
+            color = HINT_COLOR
+        img = self.hint_font.render(text, True, color)
         self.display.blit(
             img,
             img.get_rect(
@@ -503,7 +525,7 @@ class Floodit:
             self.display, self.board_rect.move(offset), self.TABLE_SIZE, filters.CELL_PX
         )
         self._draw_overlay(offset)
-        self._draw_preview_gain()
+        self._draw_target_line()
         for ripple in self.ripples:
             ripple.draw(self.display)
         self.particles.draw(self.display)
@@ -591,7 +613,13 @@ class Floodit:
     def _check_end(self):
         """判定胜负并显示提示，在动画播完后调用。"""
         if fill.filldone(self.table.ary):
-            self._show_status("win", WIN_COLOR)
+            # 通关：登记成绩，刷新纪录则显示金色"新纪录"，否则普通胜利提示
+            key = DIFFICULTIES[self.difficulty]["key"]
+            self.is_record = self.scores.record(key, self.steps)
+            if self.is_record:
+                self._show_status("record", RECORD_COLOR)
+            else:
+                self._show_status("win", WIN_COLOR)
             self.won = True
             self.particles.emit(confetti(self.board_rect, list(self.COLORS.values())))
         elif self.steps >= self.max_steps:
@@ -640,6 +668,7 @@ class Floodit:
     def reset(self):
         self.won = False
         self.lost = False
+        self.is_record = False
         self.steps = 0
         self.animation = None
         self.particles.clear()
