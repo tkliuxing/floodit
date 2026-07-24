@@ -1,14 +1,13 @@
-# 用 hatchling 而非 setuptools：仓库里的 setup.py 只服务于 py2app
-# (setup_requires=["py2app"])，让 setuptools 接管会把它一起拖进构建流程。
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "floodit"
-version = "0.2.0"
+version = "0.3.0"
 description = "A Python and Pygame implementation of the Flood It! coloring game."
 readme = "README.md"
+authors = [{ name = "Ronald Bai", email = "ouyanghongyu@gmail.com" }]
 requires-python = ">=3.11.12"
 dependencies = [
     "pygame>=2.6.1",
