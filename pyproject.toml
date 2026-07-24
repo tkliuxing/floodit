@@ -8,6 +8,8 @@ version = "0.3.0"
 description = "A Python and Pygame implementation of the Flood It! coloring game."
 readme = "README.md"
 authors = [{ name = "Ronald Bai", email = "ouyanghongyu@gmail.com" }]
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11.12"
 dependencies = [
     "pygame>=2.6.1",
