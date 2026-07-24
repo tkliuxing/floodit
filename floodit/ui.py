@@ -29,6 +29,21 @@ LIGHT_THRESHOLD = 200
 # 未显式传入字体时的兜底字号
 DEFAULT_FONT_SIZE = 20
 
+# 立体按钮的投影：向下偏移量与不透明度
+SHADOW_OFFSET = 2
+SHADOW_ALPHA = 60
+
+# 数字压在色块上时，按底色亮度取深/浅字，保证可读。
+# 阈值取 150 而非 LIGHT_THRESHOLD(200)：青、绿这类中等亮度色配深字更清楚。
+TEXT_LUMA_THRESHOLD = 150
+TEXT_ON_LIGHT = (30, 34, 40)
+TEXT_ON_DARK = (255, 255, 255)
+
+
+def text_on(color: tuple) -> tuple:
+    """返回在 color 上清晰可读的文字颜色。"""
+    return TEXT_ON_LIGHT if _luma(color) > TEXT_LUMA_THRESHOLD else TEXT_ON_DARK
+
 
 class Button:
     """游戏操作按钮"""
@@ -42,6 +57,7 @@ class Button:
         font: pg.font.Font = None,
         radius: int = 6,
         text_color: tuple = (45, 48, 54),
+        raised: bool = False,
     ):
         """
         生成按钮。
@@ -53,6 +69,8 @@ class Button:
         font: 已解析好的字体对象；为 None 时用 pygame 内置字体
         radius: 圆角半径（像素）
         text_color: 按钮文字颜色
+        raised: 立体样式——投影 + 顶部高光 + 按下贴地。用于色块选色按钮，
+                让它一眼看上去就是可按的按钮。
         """
         self.x = pos[0]
         self.y = pos[1]
@@ -73,6 +91,19 @@ class Button:
 
         self.hovered = False
         self.pressed = False
+
+        # 立体样式的附加图层：预先算好投影和高光/内描边色，show() 时直接用
+        self.raised = raised
+        if raised:
+            self.highlight_color = lighten(color, 0.25)
+            self.inner_border = darken(color, 0.28)
+            self._shadow = pg.Surface((self.w, self.h), pg.SRCALPHA)
+            pg.draw.rect(
+                self._shadow,
+                (0, 0, 0, SHADOW_ALPHA),
+                self._shadow.get_rect(),
+                border_radius=radius,
+            )
 
         self.font = font or pg.font.Font(None, DEFAULT_FONT_SIZE)
         self.text_color = text_color
@@ -95,14 +126,45 @@ class Button:
         return self.color
 
     def show(self, screen: pg.Surface):
-        """在指定的 screen 上绘制按钮。"""
+        """在指定的 screen 上绘制按钮。
+
+        立体样式的按钮带半透明投影，调用方须在重绘前用背景色抹掉该区域，
+        否则逐帧叠画会让投影越积越深（见 Floodit._draw_buttons）。
+        """
+        pressed = self.pressed and self.hovered
+        if self.raised:
+            self._show_raised(screen, pressed)
+        else:
+            self._show_flat(screen, pressed)
+
+    def _show_flat(self, screen: pg.Surface, pressed: bool):
         pg.draw.rect(screen, self._fill_color(), self.rect, border_radius=self.radius)
         pg.draw.rect(
             screen, self.border_color, self.rect, width=1, border_radius=self.radius
         )
         # 按下时文字下沉 1px，模拟被按进去的手感
-        offset = 1 if (self.pressed and self.hovered) else 0
-        screen.blit(self.text, self.textpos.move(0, offset))
+        screen.blit(self.text, self.textpos.move(0, 1 if pressed else 0))
+
+    def _show_raised(self, screen: pg.Surface, pressed: bool):
+        if pressed:
+            # 按下：整块下沉到投影位置，投影消失，像被按进平面
+            rect = self.rect.move(0, SHADOW_OFFSET)
+        else:
+            screen.blit(self._shadow, (self.x, self.y + SHADOW_OFFSET))
+            rect = self.rect
+        pg.draw.rect(screen, self._fill_color(), rect, border_radius=self.radius)
+        # 外圈高光 + 内圈暗边，制造微微凸起的立体感
+        pg.draw.rect(
+            screen, self.highlight_color, rect, width=1, border_radius=self.radius
+        )
+        pg.draw.rect(
+            screen,
+            self.inner_border,
+            rect.inflate(-2, -2),
+            width=1,
+            border_radius=max(1, self.radius - 1),
+        )
+        screen.blit(self.text, self.text.get_rect(center=rect.center))
 
     def check_click(self, pos: tuple) -> bool:
         """检查坐标 pos 是否落在按钮范围内。"""

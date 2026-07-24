@@ -8,7 +8,7 @@ from .anim import FloodAnimation, RevealAnimation
 from .event import ClickEventListen
 from .i18n import Translator
 from .particle import ParticleSystem, Ripple, ScreenShake, burst, confetti
-from .ui import Button, GameTable
+from .ui import SHADOW_OFFSET, Button, GameTable, text_on
 
 ZOOM = 1
 WINDOW_SIZE = (int(580 * ZOOM), int(340 * ZOOM))
@@ -61,13 +61,13 @@ FONT_SIZE = int(20 * ZOOM)
 STATUS_FONT_SIZE = int(28 * ZOOM)
 # 圆角半径
 NEW_GAME_RADIUS = int(8 * ZOOM)
-SWATCH_RADIUS = int(5 * ZOOM)
-# 色块上方数字键标号的字号，以及数字底边与色块顶边的间距。
-# 标号只有数字，用拉丁字体而非界面的中文字体渲染：后者的 "4" 是开口
-# 造型，小字号下会糊成像对勾的形状，拉丁字体是标准闭口 "4"，更清晰。
-SWATCH_LABEL_FONT_SIZE = int(15 * ZOOM)
+SWATCH_RADIUS = int(7 * ZOOM)
+# 色块选色按钮：放大成有体量的立体按钮，数字压在块内。
+SWATCH_SIZE = int(30 * ZOOM)
+# 数字只含 0-9，用拉丁字体而非界面中文字体渲染：后者的 "4" 是开口造型，
+# 小字号下会糊成像对勾的形状，拉丁字体是标准闭口 "4"，更清晰。
+SWATCH_LABEL_FONT_SIZE = int(18 * ZOOM)
 SWATCH_LABEL_SAMPLE = "0123456789"
-SWATCH_LABEL_GAP = int(3 * ZOOM)
 
 # --- 新手引导 ---------------------------------------------------------------
 # 引导文案的字号，以及行间距
@@ -114,9 +114,7 @@ class Floodit:
         self.status_font = fonts.resolve(STATUS_FONT_SIZE, sample)
         self.hint_font = fonts.resolve(HINT_FONT_SIZE, sample)
         self.hint_keys_font = fonts.resolve(HINT_KEYS_FONT_SIZE, sample)
-        self.swatch_label_font = fonts.resolve(
-            SWATCH_LABEL_FONT_SIZE, SWATCH_LABEL_SAMPLE
-        )
+        self.swatch_font = fonts.resolve(SWATCH_LABEL_FONT_SIZE, SWATCH_LABEL_SAMPLE)
         pg.display.set_caption(self.i18n.t("title"))
 
         self.screen.fill(BG_COLOR)
@@ -133,8 +131,9 @@ class Floodit:
         )
         # 面板宽度正好容纳一排色块按钮（末尾不留空隙）
         panel_w = self.BLOCK_SIDE * (len(self.COLORS) * SWATCH_STRIDE_BLOCKS - 1)
-        # 色块按钮与棋盘底部对齐
-        swatch_y = self.TABLE_POSITION[1] + self.BLOCK_SIDE * (self.TABLE_SIZE[1] - 1)
+        # 立体色块按钮：底边与棋盘底边对齐
+        board_bottom = self.TABLE_POSITION[1] + self.TABLE_SIZE[1] * self.BLOCK_SIDE
+        swatch_y = board_bottom - SWATCH_SIZE
 
         self.rb = Button(
             (panel_x, self.TABLE_POSITION[1]),
@@ -158,20 +157,34 @@ class Floodit:
         self.events = ClickEventListen()
         self.events.register(self.rb, self.reset)
 
-        # 初始化色块按钮
-        left = panel_x
+        # 初始化色块按钮：在 panel_w 内等距铺开，数字压在块内
+        count = len(self.COLORS)
+        free = panel_w - count * SWATCH_SIZE
+        stride = SWATCH_SIZE + (free / (count - 1) if count > 1 else 0)
         self.color_buttons = []
-        for k, v in self.COLORS.items():
+        for index, (k, v) in enumerate(self.COLORS.items()):
+            x = panel_x + round(index * stride)
+            # 只有前 9 个绑定了数字键（见 _register_keys），才标号
+            digit = str(index + 1) if index < 9 else ""
             button = Button(
-                (left, swatch_y),
-                (self.BLOCK_SIDE, self.BLOCK_SIDE),
+                (x, swatch_y),
+                (SWATCH_SIZE, SWATCH_SIZE),
                 color=v,
-                font=self.font,
+                text=digit,
+                font=self.swatch_font,
+                text_color=text_on(v),
                 radius=SWATCH_RADIUS,
+                raised=True,
             )
             self.color_buttons.append(button)
             self.events.register(button, self.colors_click, number=k)
-            left += self.BLOCK_SIDE * SWATCH_STRIDE_BLOCKS
+        # 立体按钮的投影是半透明的，重绘前要抹掉整条区域，否则逐帧叠加会变黑
+        self.swatch_band = pg.Rect(
+            self.color_buttons[0].x,
+            swatch_y,
+            self.color_buttons[-1].x1 - self.color_buttons[0].x,
+            SWATCH_SIZE + SHADOW_OFFSET,
+        )
 
         self._register_keys()
 
@@ -408,24 +421,12 @@ class Floodit:
         return bool(self.particles.active or self.ripples or self.shake)
 
     def _draw_buttons(self):
-        """重绘全部按钮，使悬停/按下状态即时可见，并标出对应的数字键。"""
+        """重绘全部按钮，使悬停/按下状态即时可见。数字键标号已画在块内。"""
         self.rb.show(self.screen)
-        for index, button in enumerate(self.color_buttons):
+        # 立体色块按钮带半透明投影，逐帧叠画会越积越深，重绘前先抹底
+        self.screen.fill(BG_COLOR, self.swatch_band)
+        for button in self.color_buttons:
             button.show(self.screen)
-            # 只有前 9 个色块绑定了数字键（见 _register_keys），其余不标号
-            if index < 9:
-                self._draw_swatch_label(index, button)
-
-    def _draw_swatch_label(self, index: int, button: Button):
-        """在色块上方标出它对应的数字键，让键鼠对应关系一眼可见。"""
-        img = self.swatch_label_font.render(str(index + 1), True, TEXT_COLOR)
-        rect = img.get_rect(
-            centerx=button.rect.centerx,
-            bottom=button.rect.top - SWATCH_LABEL_GAP,
-        )
-        # 先用背景色抹掉上一帧的字：抗锯齿文字每帧叠画会让边缘越来越糊
-        self.screen.fill(BG_COLOR, rect)
-        self.screen.blit(img, rect)
 
     def _draw_steps(self):
         """在 New Game 按钮下方显示当前步数。"""
