@@ -62,8 +62,11 @@ STATUS_FONT_SIZE = int(28 * ZOOM)
 # 圆角半径
 NEW_GAME_RADIUS = int(8 * ZOOM)
 SWATCH_RADIUS = int(5 * ZOOM)
-# 色块上方数字键标号的字号，以及数字底边与色块顶边的间距
-SWATCH_LABEL_FONT_SIZE = int(13 * ZOOM)
+# 色块上方数字键标号的字号，以及数字底边与色块顶边的间距。
+# 标号只有数字，用拉丁字体而非界面的中文字体渲染：后者的 "4" 是开口
+# 造型，小字号下会糊成像对勾的形状，拉丁字体是标准闭口 "4"，更清晰。
+SWATCH_LABEL_FONT_SIZE = int(15 * ZOOM)
+SWATCH_LABEL_SAMPLE = "0123456789"
 SWATCH_LABEL_GAP = int(3 * ZOOM)
 
 # --- 新手引导 ---------------------------------------------------------------
@@ -111,7 +114,9 @@ class Floodit:
         self.status_font = fonts.resolve(STATUS_FONT_SIZE, sample)
         self.hint_font = fonts.resolve(HINT_FONT_SIZE, sample)
         self.hint_keys_font = fonts.resolve(HINT_KEYS_FONT_SIZE, sample)
-        self.swatch_label_font = fonts.resolve(SWATCH_LABEL_FONT_SIZE, sample)
+        self.swatch_label_font = fonts.resolve(
+            SWATCH_LABEL_FONT_SIZE, SWATCH_LABEL_SAMPLE
+        )
         pg.display.set_caption(self.i18n.t("title"))
 
         self.screen.fill(BG_COLOR)
