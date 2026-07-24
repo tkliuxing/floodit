@@ -45,6 +45,27 @@ def text_on(color: tuple) -> tuple:
     return TEXT_ON_LIGHT if _luma(color) > TEXT_LUMA_THRESHOLD else TEXT_ON_DARK
 
 
+# 步数压力条的三段取色：越接近步数上限越红。与胜/负提示同色系，
+# 让"绿=从容、红=告急"的语义在整个界面里保持一致。
+PRESSURE_CALM = (56, 142, 60)  # 绿，与 WIN_COLOR 同
+PRESSURE_WARN = (223, 163, 53)  # 琥珀
+PRESSURE_DANGER = (198, 70, 70)  # 红，与 LOSE_COLOR 同
+# 压力条底槽：未填充部分的浅色轨道
+PRESSURE_TRACK = (214, 218, 224)
+
+
+def pressure_color(ratio: float) -> tuple:
+    """按 0..1 的压力比例取色：0 从容(绿) → 0.5 警戒(琥珀) → 1 告急(红)。
+
+    ratio 通常是"已用步数 / 步数上限"。超出 [0,1] 会被夹住，
+    使调用方不必自己防越界。
+    """
+    ratio = min(1.0, max(0.0, ratio))
+    if ratio <= 0.5:
+        return _mix(PRESSURE_CALM, PRESSURE_WARN, ratio / 0.5)
+    return _mix(PRESSURE_WARN, PRESSURE_DANGER, (ratio - 0.5) / 0.5)
+
+
 class Button:
     """游戏操作按钮"""
 

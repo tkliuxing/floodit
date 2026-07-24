@@ -8,7 +8,14 @@ from .anim import FloodAnimation, RevealAnimation
 from .event import ClickEventListen
 from .i18n import Translator
 from .particle import ParticleSystem, Ripple, ScreenShake, burst, confetti
-from .ui import SHADOW_OFFSET, Button, GameTable, text_on
+from .ui import (
+    PRESSURE_TRACK,
+    SHADOW_OFFSET,
+    Button,
+    GameTable,
+    pressure_color,
+    text_on,
+)
 
 ZOOM = 1
 WINDOW_SIZE = (int(580 * ZOOM), int(340 * ZOOM))
@@ -53,6 +60,10 @@ NEW_GAME_HEIGHT_BLOCKS = 2
 # 步数文字区域与 New Game 按钮之间的间距、以及该区域的高度（像素）
 STEPS_MARGIN_TOP = int(10 * ZOOM)
 STEPS_HEIGHT = int(24 * ZOOM)
+# 步数压力条：紧贴步数文字下方，填充比例=已用步数/上限，越满越红。
+STEPS_BAR_MARGIN_TOP = int(6 * ZOOM)
+STEPS_BAR_HEIGHT = int(8 * ZOOM)
+STEPS_BAR_RADIUS = int(4 * ZOOM)
 # 胜负提示与步数文字之间的间距，以及提示区域的高度（像素）
 STATUS_MARGIN_TOP = int(28 * ZOOM)
 STATUS_HEIGHT = int(40 * ZOOM)
@@ -147,13 +158,19 @@ class Floodit:
             radius=NEW_GAME_RADIUS,
         )
 
-        # 步数与胜负提示的位置由按钮底边推出，不再依赖魔数
+        # 步数、压力条与胜负提示的位置由按钮底边逐段推出，不再依赖魔数
         self.steps_rect = pg.Rect(
             panel_x, self.rb.y1 + STEPS_MARGIN_TOP, panel_w, STEPS_HEIGHT
         )
+        self.steps_bar_rect = pg.Rect(
+            panel_x,
+            self.steps_rect.bottom + STEPS_BAR_MARGIN_TOP,
+            panel_w,
+            STEPS_BAR_HEIGHT,
+        )
         self.status_rect = pg.Rect(
             panel_x,
-            self.steps_rect.bottom + STATUS_MARGIN_TOP,
+            self.steps_bar_rect.bottom + STATUS_MARGIN_TOP,
             panel_w,
             STATUS_HEIGHT,
         )
@@ -373,7 +390,9 @@ class Floodit:
         img = self.hint_font.render(text, True, TEXT_COLOR)
         self.display.blit(
             img,
-            img.get_rect(centerx=self.steps_rect.centerx, y=self.steps_rect.bottom + 2),
+            img.get_rect(
+                centerx=self.steps_rect.centerx, y=self.steps_bar_rect.bottom + 2
+            ),
         )
 
     @property
@@ -442,12 +461,32 @@ class Floodit:
             button.show(self.screen)
 
     def _draw_steps(self):
-        """在 New Game 按钮下方显示当前步数。"""
+        """在 New Game 按钮下方显示当前步数与压力条。"""
         pg.draw.rect(self.screen, BG_COLOR, self.steps_rect)
         color = LOSE_COLOR if self.steps >= MAX_STEPS else TEXT_COLOR
         message = self.i18n.t("steps", steps=self.steps, max_steps=MAX_STEPS)
         text = self.font.render(message, True, color)
         self.screen.blit(text, text.get_rect(center=self.steps_rect.center))
+        self._draw_pressure_bar()
+
+    def _draw_pressure_bar(self):
+        """步数压力条：浅色底槽 + 按已用比例填充，越接近上限越红。
+
+        一眼就能看出还剩多少步、有多告急，比纯数字更快传达压力。
+        """
+        bar = self.steps_bar_rect
+        self.screen.fill(BG_COLOR, bar)
+        pg.draw.rect(self.screen, PRESSURE_TRACK, bar, border_radius=STEPS_BAR_RADIUS)
+        ratio = self.steps / MAX_STEPS if MAX_STEPS else 0.0
+        filled = round(bar.width * min(1.0, ratio))
+        if filled > 0:
+            fill_rect = pg.Rect(bar.x, bar.y, filled, bar.height)
+            pg.draw.rect(
+                self.screen,
+                pressure_color(ratio),
+                fill_rect,
+                border_radius=STEPS_BAR_RADIUS,
+            )
 
     def colors_click(self, number: int = None):
         assert number is not None, "CLICK ERROR!"
