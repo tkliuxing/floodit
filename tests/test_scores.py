@@ -57,9 +57,7 @@ def test_corrupt_file_is_ignored_and_still_writable(tmp_path):
 def test_dirty_values_are_dropped(tmp_path):
     p = tmp_path / "scores.json"
     p.write_text(
-        json.dumps(
-            {"diff_normal": -3, "x": "bad", "diff_easy": True, "diff_hard": 7}
-        ),
+        json.dumps({"diff_normal": -3, "x": "bad", "diff_easy": True, "diff_hard": 7}),
         encoding="utf-8",
     )
     s = BestScores(p)

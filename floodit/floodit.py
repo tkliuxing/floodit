@@ -78,6 +78,7 @@ def board_geometry(preset: dict, board_px: int = None, origin: tuple = None):
     position = (origin[0] + offset, origin[1] + offset)
     return (grid, grid), side, position, preset["max_steps"]
 
+
 # 单帧最大步进时间，防止窗口卡顿/拖动后一帧把整段动画跳完
 MAX_FRAME_TIME = 0.1
 
